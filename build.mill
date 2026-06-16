@@ -1,8 +1,14 @@
+//| mill-version: 1.1.6-native
+//| mvnDeps:
+//|   - com.goyeau::mill-scalafix_mill1:0.6.0
+
 package build
+
+import com.goyeau.mill.scalafix.ScalafixModule
 
 import mill.*, scalalib.*
 
-trait ChocoLaModule extends ScalaModule:
+trait ChocoLaModule extends ScalaModule with ScalafixModule:
     override def scalaVersion = "3.8.3"
 
 object `package` extends ChocoLaModule:
@@ -10,3 +16,27 @@ object `package` extends ChocoLaModule:
         override def mvnDeps = Seq(
             mvn"com.github.alexarchambault::case-app:2.1.0"
         )
+
+
+    // Top level commands and helpers
+
+    def allChildren =
+        allChidrenRec(moduleDirectChildren)
+
+    def allChidrenRec(children: Seq[Module]): Seq[Module] =
+        children ++ children.flatMap(child =>
+        allChidrenRec(child.moduleDirectChildren)
+        )
+    // Run all formatting on all sources in the framework
+    def format() = Task.Command:
+        Task.sequence:
+            allChildren.collect:
+                case m: ChocoLaModule => m.fix()
+        scalafmt.ScalafmtModule.reformatAll()()
+
+    // Run all formatting *checks* on all sources in the framework
+    def checkFormat() = Task.Command:
+        Task.sequence:
+            allChildren.collect:
+                case m: ChocoLaModule => m.fix("--check")
+        scalafmt.ScalafmtModule.checkFormatAll()()

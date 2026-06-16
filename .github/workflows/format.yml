@@ -1,0 +1,28 @@
+name: Format
+
+# Run on every push to main and every change on pull requests
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Formatting checks
+  format:
+    name: "Checks"
+    runs-on: ubuntu-latest
+
+    # Checkout the code
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Coursier cache
+      uses: coursier/cache-action@v7
+
+    # Check if the code is formatted as expected
+    - name: Run format checks
+      run: ./mill checkFormat
