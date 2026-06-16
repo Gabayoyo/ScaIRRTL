@@ -6,4 +6,7 @@ trait ChocoLaModule extends ScalaModule:
     override def scalaVersion = "3.8.3"
 
 object `package` extends ChocoLaModule:
-    object main extends ChocoLaModule
+    object main extends ChocoLaModule:
+        override def mvnDeps = Seq(
+            mvn"com.github.alexarchambault::case-app:2.1.0"
+        )
