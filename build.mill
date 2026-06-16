@@ -1,0 +1,9 @@
+package build
+
+import mill.*, scalalib.*
+
+trait ChocoLaModule extends ScalaModule:
+    override def scalaVersion = "3.8.3"
+
+object `package` extends ChocoLaModule:
+    object main extends ChocoLaModule
