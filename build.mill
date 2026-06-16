@@ -12,9 +12,16 @@ trait ChocoLaModule extends ScalaModule with ScalafixModule:
     override def scalaVersion = "3.8.3"
 
 object `package` extends ChocoLaModule:
+    object parser extends ChocoLaModule:
+        override def mvnDeps = Seq(
+            mvn"com.lihaoyi::fastparse:3.1.1"
+        )
     object main extends ChocoLaModule:
         override def mvnDeps = Seq(
             mvn"com.github.alexarchambault::case-app:2.1.0"
+        )
+        override def moduleDeps = Seq(
+            parser
         )
 
 
