@@ -1,0 +1,4 @@
+val x = 0
+val y = 0
+val z = true
+if z then x else y
