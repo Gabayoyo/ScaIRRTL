@@ -21,7 +21,7 @@ enum Tree[a] {
 // CHECK: "chocola.func"() <{sym = "double"}> ({
 // CHECK: ^bb0(%0: !chocola.unknown):
 // CHECK:   %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.unknown
-// CHECK:   %2 = "chocola.binop"(%0, %1) <{op = "*"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK:   %2 = "chocola.mul"(%0, %1) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
 // CHECK:   "chocola.return"(%2) : (!chocola.unknown) -> ()
 // CHECK: }) : () -> !chocola.unknown
 // CHECK: "chocola.func"() <{sym = "identity"}> ({
@@ -30,7 +30,7 @@ enum Tree[a] {
 // CHECK: }) : () -> !chocola.unknown
 // CHECK: "chocola.func"() <{sym = "add"}> ({
 // CHECK: ^bb0(%0: !chocola.unknown, %1: !chocola.unknown):
-// CHECK:   %2 = "chocola.binop"(%0, %1) <{op = "+"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
 // CHECK:   "chocola.return"(%2) : (!chocola.unknown) -> ()
 // CHECK: }) : () -> !chocola.unknown
 // CHECK: "chocola.enum"() <{sym = "Color", typeParams = ""}> ({

@@ -103,13 +103,33 @@ def lowerExpr(expr: Expr, ctx: LoweringContext): Value[Attribute] =
       val lv = lowerExpr(l, ctx)
       val rv = lowerExpr(r, ctx)
       val result = Result(unknown)
-      ctx.emit(BinaryOp(StringData(op), lv, rv, result))
+      val binOp = op match
+        case "+"  => AddOp(lv, rv, result)
+        case "-"  => SubOp(lv, rv, result)
+        case "*"  => MulOp(lv, rv, result)
+        case "/"  => DivOp(lv, rv, result)
+        case "==" => EqOp(lv, rv, result)
+        case "!=" => NeqOp(lv, rv, result)
+        case "<"  => LtOp(lv, rv, result)
+        case ">"  => GtOp(lv, rv, result)
+        case "<=" => LeqOp(lv, rv, result)
+        case ">=" => GeqOp(lv, rv, result)
+        case "||" => OrOp(lv, rv, result)
+        case "&&" => AndOp(lv, rv, result)
+        case "::" => ConsOp(lv, rv, result)
+        case _    =>
+          throw IllegalArgumentException(s"Unknown binary operator: $op")
+      ctx.emit(binOp)
       result
 
     case Expr.UnOp(op, e) =>
       val v = lowerExpr(e, ctx)
       val result = Result(unknown)
-      ctx.emit(UnaryOp(StringData(op), v, result))
+      val unOp = op match
+        case "-" => NegOp(v, result)
+        case "!" => NotOp(v, result)
+        case _ => throw IllegalArgumentException(s"Unknown unary operator: $op")
+      ctx.emit(unOp)
       result
 
     case Expr.Apply(f, args) =>

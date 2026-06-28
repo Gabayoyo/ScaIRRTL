@@ -28,21 +28,108 @@ case class ConstantOp(
 ) extends DerivedOperation["chocola.constant"]
     with NoMemoryEffect derives OpDefs
 
-/** All binary operators; `op` encodes the operator symbol (+, *, ::, ==, …). */
-case class BinaryOp(
-    op: StringData,
+// Binary arithmetic
+case class AddOp(
     lhs: Operand[Attribute],
     rhs: Operand[Attribute],
     result: Result[Attribute],
-) extends DerivedOperation["chocola.binop"]
+) extends DerivedOperation["chocola.add"]
     with NoMemoryEffect derives OpDefs
 
-/** Unary operators: `-` and `!`. */
-case class UnaryOp(
-    op: StringData,
-    operand: Operand[Attribute],
+case class SubOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
     result: Result[Attribute],
-) extends DerivedOperation["chocola.unary"]
+) extends DerivedOperation["chocola.sub"]
+    with NoMemoryEffect derives OpDefs
+
+case class MulOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.mul"]
+    with NoMemoryEffect derives OpDefs
+
+case class DivOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.div"]
+    with NoMemoryEffect derives OpDefs
+
+// Binary comparison
+case class EqOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.eq"]
+    with NoMemoryEffect derives OpDefs
+
+case class NeqOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.neq"]
+    with NoMemoryEffect derives OpDefs
+
+case class LtOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.lt"]
+    with NoMemoryEffect derives OpDefs
+
+case class GtOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.gt"]
+    with NoMemoryEffect derives OpDefs
+
+case class LeqOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.leq"]
+    with NoMemoryEffect derives OpDefs
+
+case class GeqOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.geq"]
+    with NoMemoryEffect derives OpDefs
+
+// Binary logic
+case class OrOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.or"]
+    with NoMemoryEffect derives OpDefs
+
+case class AndOp(
+    lhs: Operand[Attribute],
+    rhs: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.and"]
+    with NoMemoryEffect derives OpDefs
+
+// List cons
+case class ConsOp(
+    head: Operand[Attribute],
+    tail: Operand[Attribute],
+    result: Result[Attribute],
+) extends DerivedOperation["chocola.cons"]
+    with NoMemoryEffect derives OpDefs
+
+// Unary operators
+case class NegOp(operand: Operand[Attribute], result: Result[Attribute])
+    extends DerivedOperation["chocola.neg"]
+    with NoMemoryEffect derives OpDefs
+
+case class NotOp(operand: Operand[Attribute], result: Result[Attribute])
+    extends DerivedOperation["chocola.not"]
     with NoMemoryEffect derives OpDefs
 
 /** Function application. */
@@ -140,8 +227,21 @@ val ChocolaDialect = summonDialect[
   EmptyTuple,
   (
       ConstantOp,
-      BinaryOp,
-      UnaryOp,
+      AddOp,
+      SubOp,
+      MulOp,
+      DivOp,
+      EqOp,
+      NeqOp,
+      LtOp,
+      GtOp,
+      LeqOp,
+      GeqOp,
+      OrOp,
+      AndOp,
+      ConsOp,
+      NegOp,
+      NotOp,
       CallOp,
       ConstructOp,
       TupleOp,

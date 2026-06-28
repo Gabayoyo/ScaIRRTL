@@ -11,14 +11,14 @@ val notExpr = !true
 val lst = 1 :: 2 :: Nil
 
 // CHECK: Parsing succeeded.
-// CHECK: "chocola.binop"(%0, %1) <{op = "+"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%2, %3) <{op = "*"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%4, %5) <{op = "*"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%6, %7) <{op = "+"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%8, %9) <{op = "<"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%10, %11) <{op = "=="}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%12, %13) <{op = "&&"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%14, %15) <{op = "||"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.unary"(%16) <{op = "!"}> : (!chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%17, %18) <{op = "::"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK: "chocola.binop"(%19, %20) <{op = "::"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.add"(%0, %1) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.mul"(%2, %3) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.mul"(%4, %5) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.add"(%6, %7) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.lt"(%8, %9) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.eq"(%10, %11) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.and"(%12, %13) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.or"(%14, %15) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.not"(%16) : (!chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.cons"(%17, %18) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.cons"(%19, %20) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
