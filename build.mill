@@ -25,6 +25,17 @@ object `package` extends ChocoLaModule:
         )
 
 
+    object filechecks extends Module:
+        def run() = Task.Command(exclusive = true):
+            val launcher = main.launcher().path
+            os.proc("lit", "tests/filecheck", "-v")
+                .call(
+                    propagateEnv = true,
+                    stdout = os.Inherit,
+                    stderr = os.Inherit,
+                    env = Map("CHOCOLA_PARSE" -> launcher.toString)
+                )
+
     // Top level commands and helpers
 
     def allChildren =

@@ -1,0 +1,21 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// Single-parameter lambda
+val double = (x: Int) => x * 2
+
+// Multi-parameter lambda
+val add = (x: Int, y: Int) => x + y
+
+// Lambda applied immediately (function call postfix)
+val result = (x: Int) => x + 1
+
+// Tuple expression (distinct from lambda: no type annotations, no =>)
+val pair = (1, 2)
+val triple = (1, 2, 3)
+
+// CHECK: Parsing succeeded.
+// CHECK: ValDecl(double,Lambda(List((x,TInt)),BinOp(*,Var(x),Lit(IntLit(2)))))
+// CHECK: ValDecl(add,Lambda(List((x,TInt), (y,TInt)),BinOp(+,Var(x),Var(y))))
+// CHECK: ValDecl(result,Lambda(List((x,TInt)),BinOp(+,Var(x),Lit(IntLit(1)))))
+// CHECK: ValDecl(pair,Tuple(List(Lit(IntLit(1)), Lit(IntLit(2)))))
+// CHECK: ValDecl(triple,Tuple(List(Lit(IntLit(1)), Lit(IntLit(2)), Lit(IntLit(3)))))

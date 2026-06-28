@@ -1,0 +1,34 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// Type alias
+type MyInt = Int
+
+// Monomorphic function
+def double(x: Int): Int = x * 2
+
+// Polymorphic function (type parameter in brackets)
+def identity[a](x: a): a = x
+
+// Multi-parameter function
+def add(x: Int, y: Int): Int = x + y
+
+// Zero-arg enum
+enum Color {
+  case Red()
+  case Green()
+  case Blue()
+}
+
+// Parameterised enum
+enum Tree[a] {
+  case Leaf(value: a)
+  case Node(left: Tree, right: Tree)
+}
+
+// CHECK: Parsing succeeded.
+// CHECK: TypeDecl(MyInt,TInt)
+// CHECK: DefDecl(double,List(),List((x,TInt)),TInt,BinOp(*,Var(x),Lit(IntLit(2))))
+// CHECK: DefDecl(identity,List(a),List((x,TName(a))),TName(a),Var(x))
+// CHECK: DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x),Var(y)))
+// CHECK: EnumDecl(Color,List(),List(EnumCase(Red,List()), EnumCase(Green,List()), EnumCase(Blue,List())))
+// CHECK: EnumDecl(Tree,List(a),List(EnumCase(Leaf,List((value,TName(a)))), EnumCase(Node,List((left,TName(Tree)), (right,TName(Tree))))))

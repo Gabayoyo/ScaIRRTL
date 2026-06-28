@@ -1,0 +1,7 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// Missing binding name: `val = 42` is not valid syntax.
+val = 42
+
+// CHECK: Parsing failed.
+// CHECK-NOT: Parsing succeeded.

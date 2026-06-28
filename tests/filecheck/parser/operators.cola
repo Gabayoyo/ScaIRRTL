@@ -1,0 +1,30 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// Arithmetic
+val add = 1 + 2
+val mul = 3 * 4
+// Precedence: * binds tighter than +, so 1 + 2 * 3 = 1 + (2 * 3)
+val prec = 1 + 2 * 3
+
+// Comparison
+val lt = 1 < 2
+val eq = 1 == 1
+
+// Boolean
+val andExpr = true && false
+val orExpr  = true || false
+val notExpr = !true
+
+// List cons (right-associative: 1 :: 2 :: Nil = 1 :: (2 :: Nil))
+val lst = 1 :: 2 :: Nil
+
+// CHECK: Parsing succeeded.
+// CHECK: ValDecl(add,BinOp(+,Lit(IntLit(1)),Lit(IntLit(2))))
+// CHECK: ValDecl(mul,BinOp(*,Lit(IntLit(3)),Lit(IntLit(4))))
+// CHECK: ValDecl(prec,BinOp(+,Lit(IntLit(1)),BinOp(*,Lit(IntLit(2)),Lit(IntLit(3)))))
+// CHECK: ValDecl(lt,BinOp(<,Lit(IntLit(1)),Lit(IntLit(2))))
+// CHECK: ValDecl(eq,BinOp(==,Lit(IntLit(1)),Lit(IntLit(1))))
+// CHECK: ValDecl(andExpr,BinOp(&&,Lit(BoolLit(true)),Lit(BoolLit(false))))
+// CHECK: ValDecl(orExpr,BinOp(||,Lit(BoolLit(true)),Lit(BoolLit(false))))
+// CHECK: ValDecl(notExpr,UnOp(!,Lit(BoolLit(true))))
+// CHECK: ValDecl(lst,BinOp(::,Lit(IntLit(1)),BinOp(::,Lit(IntLit(2)),Lit(NilLit))))

@@ -1,0 +1,33 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// Primitive types
+def useInt(x: Int): Int = x
+def useBool(x: Bool): Bool = x
+def useDouble(x: Double): Double = x
+def useString(x: String): String = x
+
+// List type
+def useList(xs: List[Int]): List[Int] = xs
+
+// Function type (right-associative: Int => Int => Int = Int => (Int => Int))
+def higherOrder(f: Int => Int): Int = f(0)
+def curried(f: Int => Int => Int): Int = f(1)(2)
+
+// Tuple type
+def usePair(p: (Int, Bool)): Int = 0
+
+// Named type / type variable
+type Alias = Int
+def poly[a](x: a): a = x
+
+// CHECK: Parsing succeeded.
+// CHECK: DefDecl(useInt,List(),List((x,TInt)),TInt,Var(x))
+// CHECK: DefDecl(useBool,List(),List((x,TBool)),TBool,Var(x))
+// CHECK: DefDecl(useDouble,List(),List((x,TDouble)),TDouble,Var(x))
+// CHECK: DefDecl(useString,List(),List((x,TString)),TString,Var(x))
+// CHECK: DefDecl(useList,List(),List((xs,TList(TInt))),TList(TInt),Var(xs))
+// CHECK: DefDecl(higherOrder,List(),List((f,TFun(TInt,TInt))),TInt,Apply(Var(f),List(Lit(IntLit(0)))))
+// CHECK: DefDecl(curried,List(),List((f,TFun(TInt,TFun(TInt,TInt)))),TInt
+// CHECK: DefDecl(usePair,List(),List((p,TTuple(List(TInt, TBool)))),TInt,Lit(IntLit(0)))
+// CHECK: TypeDecl(Alias,TInt)
+// CHECK: DefDecl(poly,List(a),List((x,TName(a))),TName(a),Var(x))

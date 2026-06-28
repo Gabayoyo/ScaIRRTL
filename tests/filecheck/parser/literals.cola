@@ -1,0 +1,16 @@
+// RUN: chocola-parse %s | filecheck %s
+
+val i = 42
+val d = 3.14
+val s = "hello"
+val t = true
+val f = false
+val n = Nil
+
+// CHECK: Parsing succeeded.
+// CHECK: ValDecl(i,Lit(IntLit(42)))
+// CHECK: ValDecl(d,Lit(DoubleLit(3.14)))
+// CHECK: ValDecl(s,Lit(StrLit(hello)))
+// CHECK: ValDecl(t,Lit(BoolLit(true)))
+// CHECK: ValDecl(f,Lit(BoolLit(false)))
+// CHECK: ValDecl(n,Lit(NilLit))

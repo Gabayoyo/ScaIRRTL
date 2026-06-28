@@ -1,0 +1,7 @@
+// RUN: chocola-parse %s | filecheck %s
+
+// A binary operator with no right-hand side is not a valid expression.
+val x = 1 +
+
+// CHECK: Parsing failed.
+// CHECK-NOT: Parsing succeeded.
