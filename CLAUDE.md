@@ -12,8 +12,9 @@ The project uses a bundled `./mill` wrapper script (no global installation neede
 
 | Task | Command |
 |---|---|
-| Compile all modules | `./mill main.compile` |
+| Compile all modules | `./mill __.compile` |
 | Run the compiler on a file | `./mill main.run -- <file.cola>` |
+| Dump raw AST instead of IR | `./mill main.run -- --dump-ast <file.cola>` |
 | Run lit + FileCheck tests | `./mill filechecks.run` |
 | Format all sources | `./mill format` |
 | Check formatting (CI) | `./mill checkFormat` |
@@ -25,28 +26,30 @@ The `format` command runs both scalafix (lint/rewrite) and scalafmt on all modul
 ## Module structure
 
 ```
-build.mill               # Mill build definition (parser, main, filechecks modules)
+build.mill               # Mill build definition
 parser/
   src/
     Ast.scala            # AST: Program, Decl, Expr, Type, Literal as Scala 3 enums
     Parser.scala         # fastparse 3 grammar; exports parseFile(path: String): Option[Program]
+dialects/
+  src/
+    ChocolaDialect.scala # SCAIR IR op definitions for the chocola.* dialect
+    Lower.scala          # AST → SCAIR IR lowering; entry point: lowerProgram(Program)
 main/
   src/
-    Main.scala           # CaseApp CLI; reads one .cola file and calls parseFile
-  test/
-    resources/
-      zero.cola          # Minimal sample input (three val declarations)
+    Main.scala           # CaseApp CLI; parses, lowers, prints SCAIR assembly (--dump-ast skips lowering)
 tests/
   filecheck/
-    lit.cfg              # lit configuration; defines the chocola-parse substitution
+    lit.cfg              # lit configuration; defines the CHOCO_OPT substitution
     parser/              # One .cola test file per language feature
 ```
 
-`main` depends on `parser`. There is no third module yet.
+Module dependency chain: `parser` ← `dialects` ← `main`.
 
 ## Key dependencies
 
 - **fastparse 3.1.1** — parser combinator library. Both `Ast.scala` and `Parser.scala` live in `parser/`. The parser uses `NoWhitespace` throughout (whitespace is consumed explicitly via the `ws` rule, which also skips `//` line comments).
+- **scair-core 0.0.0-SNAPSHOT** — SCAIR IR framework (SSA-based, MLIR-inspired). Pulled from Sonatype snapshots. The `dialects` module defines the `chocola.*` dialect on top of it; see [docs](https://edin-dal.github.io/scair).
 - **case-app 2.1.0** — command-line argument parsing in `main/`.
 - **mill-scalafix** — scalafix is wired into the `ChocoLaModule` trait and runs via `./mill format`.
 
@@ -61,6 +64,16 @@ tests/
 - **`match` and `enum` bodies use braces** (`{ case ... }`) to avoid indentation sensitivity in fastparse.
 - **`Program.expr` is `Option[Expr]`** so files containing only declarations (like `zero.cola`) parse correctly.
 - **fastparse tuple flattening**: `P[(String, Type)]` is flattened when composed with `~`, so typed-parameter lists are collected via `lambdaParamList: P[List[(String, Type)]]` before being composed further.
+
+## Lowering (dialects module)
+
+`Lower.scala` walks the AST and emits SCAIR operations into a `LoweringContext`, which tracks a name→`Value[Attribute]` environment and a mutable op buffer. The lowering is purely structural (no type inference yet): every SSA value gets `UnknownType` (`!chocola.unknown`).
+
+Key invariants:
+- `lowerExpr` always returns a `Value[Attribute]` (the result SSA value of the last emitted op).
+- Regions with a non-terminator result use `YieldOp`; function bodies use `ReturnOp`.
+- `LambdaOp` and `FuncDeclOp` both open child contexts (`childCtx()`) so inner bindings don't escape.
+- When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a lowering case in `lowerExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.
 
 ## Testing
 

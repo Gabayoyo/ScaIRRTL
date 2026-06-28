@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mill *)",
+      "Bash(pip show *)",
+      "Bash(pip list *)",
+      "WebFetch(domain:edin-dal.github.io)",
+      "WebFetch(domain:mill-build.org)",
+      "WebFetch(domain:com-lihaoyi.github.io)",
+      "WebFetch(domain:scala-lang.org)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && ./mill __.compile"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && ./mill format"
+          }
+        ]
+      }
+    ]
+  }
+}
