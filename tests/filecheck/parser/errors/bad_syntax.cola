@@ -3,5 +3,8 @@
 // Missing binding name: `val = 42` is not valid syntax.
 val = 42
 
-// CHECK: Parsing failed.
-// CHECK-NOT: Parsing succeeded.
+// CHECK: error: line 4, column 5:
+// CHECK-NEXT: val = 42
+// CHECK-NEXT:     ^
+// CHECK-NEXT: expected: variable name
+// CHECK-NEXT: Parsing failed.

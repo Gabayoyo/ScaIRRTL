@@ -17,6 +17,9 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 # Run lit + FileCheck tests
 ./mill filechecks.run
 
+# Format all sources (scalafix + scalafmt)
+./mill format
+
 # Check formatting (also enforced in CI)
 ./mill checkFormat
 ```

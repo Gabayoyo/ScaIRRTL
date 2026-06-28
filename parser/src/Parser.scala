@@ -226,7 +226,8 @@ def decl[$: P]: P[Decl] =
   P(ws ~ (enumDecl | defDecl | typeDecl | valDecl))
 
 def valDecl[$: P]: P[Decl] =
-  P(kw("val") ~ ws ~ lowerIdent ~ ws ~ "=" ~ ws ~ expr).map(ValDecl(_, _))
+  P(kw("val") ~/ ws ~ lowerIdent.opaque("variable name") ~ ws ~ "=" ~ ws ~ expr)
+    .map(ValDecl(_, _))
 
 def typeDecl[$: P]: P[Decl] =
   P(kw("type") ~ ws ~ upperIdent ~ ws ~ "=" ~ ws ~ typeExpr).map(TypeDecl(_, _))
@@ -269,10 +270,24 @@ def program[$: P]: P[Program] =
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
+private def indexToLineCol(source: String, index: Int): (Int, Int) =
+  val before = source.take(index)
+  val line = before.count(_ == '\n') + 1
+  val col = index - before.lastIndexOf('\n')
+  (line, col)
+
 def parseFile(file: String): Option[Program] =
   val source = scala.io.Source.fromFile(file).mkString
   fastparse.parse(source, program(using _)) match
     case Parsed.Success(prog, _) => Some(prog)
     case f: Parsed.Failure       =>
-      println(f.trace().longAggregateMsg)
+      val (line, col) = indexToLineCol(source, f.index)
+      val sourceLine = source.split('\n').lift(line - 1).getOrElse("")
+      val caret = " " * (col - 1) + "^"
+      println(s"error: line $line, column $col:")
+      println(sourceLine)
+      println(caret)
+      val expected = f.trace().msg.replaceAll(":\\d+:\\d+,.*", "")
+        .stripPrefix("Expected ")
+      println(s"expected: $expected")
       None
