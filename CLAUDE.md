@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ChocoLaCompiler is a prototype compiler for an educational subset of Scala (called "ChocoLa"). It is written in Scala 3 using the [Mill](https://mill-build.org/) build tool.
+ChocoLaCompiler is a prototype compiler for an educational subset of Scala called "ChocoLa". It is written in Scala 3 using the [Mill](https://mill-build.org/) build tool. The goal is a readable, hackable codebase that students can use as a starting point to re-implement individual compiler passes.
 
 ## Build commands
 
@@ -13,50 +13,79 @@ The project uses a bundled `./mill` wrapper script (no global installation neede
 | Task | Command |
 |---|---|
 | Compile all modules | `./mill main.compile` |
-| Run the compiler | `./mill main.run -- <file.cola>` |
+| Run the compiler on a file | `./mill main.run -- <file.cola>` |
+| Run lit + FileCheck tests | `./mill filechecks.run` |
 | Format all sources | `./mill format` |
 | Check formatting (CI) | `./mill checkFormat` |
-| Run tests | `./mill main.test` |
+
+`pip install lit filecheck` is required before running `filechecks.run`.
 
 The `format` command runs both scalafix (lint/rewrite) and scalafmt on all modules.
 
 ## Module structure
 
 ```
-build.mill          # Mill build definition
-parser/             # chocola.parser package — lexer + parser
+build.mill               # Mill build definition (parser, main, filechecks modules)
+parser/
   src/
-    Lexer.scala     # Token-level parsers (keywords, identifiers, operators)
-    Parser.scala    # Grammar rules; exports parseFile(path: String): Option[Any]
-main/               # chocola.main package — CLI entry point
+    Ast.scala            # AST: Program, Decl, Expr, Type, Literal as Scala 3 enums
+    Parser.scala         # fastparse 3 grammar; exports parseFile(path: String): Option[Program]
+main/
   src/
-    Main.scala      # CaseApp CLI; reads one .cola file and calls parseFile
+    Main.scala           # CaseApp CLI; reads one .cola file and calls parseFile
   test/
-    resources/      # Sample .cola source files used as test inputs
+    resources/
+      zero.cola          # Minimal sample input (three val declarations)
+tests/
+  filecheck/
+    lit.cfg              # lit configuration; defines the chocola-parse substitution
+    parser/              # One .cola test file per language feature
 ```
 
 `main` depends on `parser`. There is no third module yet.
 
 ## Key dependencies
 
-- **fastparse 3.1.1** — parser combinator library used in `parser/`. The lexer uses `NoWhitespace`, the parser uses `ScalaWhitespace`.
+- **fastparse 3.1.1** — parser combinator library. Both `Ast.scala` and `Parser.scala` live in `parser/`. The parser uses `NoWhitespace` throughout (whitespace is consumed explicitly via the `ws` rule, which also skips `//` line comments).
 - **case-app 2.1.0** — command-line argument parsing in `main/`.
 - **mill-scalafix** — scalafix is wired into the `ChocoLaModule` trait and runs via `./mill format`.
 
+## Parser design notes
+
+`Parser.scala` is organized into labeled sections: lexical helpers → literals → types → expression precedence layers → atoms → match cases → declarations → program. Key decisions:
+
+- **Operator precedence** is implemented as seven explicit layered parser rules (`orExpr` down to `mulExpr`), making it easy to read and modify.
+- **`::` (list cons)** is right-associative, implemented via direct recursion in `consExpr`.
+- **Lambda vs tuple disambiguation**: `lambdaExpr` (tried first) requires typed parameters `(x: T, ...) => body`; plain `parenExpr` handles everything else and backtracks on failure.
+- **Constructors vs variables**: uppercase-starting names followed by `(...)` are parsed as `Construct` at the atom level; lowercase names are `Var`.
+- **`match` and `enum` bodies use braces** (`{ case ... }`) to avoid indentation sensitivity in fastparse.
+- **`Program.expr` is `Option[Expr]`** so files containing only declarations (like `zero.cola`) parse correctly.
+- **fastparse tuple flattening**: `P[(String, Type)]` is flattened when composed with `~`, so typed-parameter lists are collected via `lambdaParamList: P[List[(String, Type)]]` before being composed further.
+
+## Testing
+
+Tests live in `tests/filecheck/parser/`. Each `.cola` file contains a small program, a `// RUN:` directive that pipes the compiler output through `filecheck`, and `// CHECK:` patterns that assert the expected AST fragment.
+
+```
+// RUN: chocola-parse %s | filecheck %s
+
+val x = 42
+
+// CHECK: Parsing succeeded.
+// CHECK: ValDecl(x,Lit(IntLit(42)))
+```
+
+`chocola-parse` is resolved by `lit` to `out/main/launcher.dest/run` (built by Mill). Run all tests with `./mill filechecks.run`.
+
+## CI
+
+Two GitHub Actions workflows run on every push to `main` and every pull request:
+
+- **[format.yml](.github/workflows/format.yml)** — runs `./mill checkFormat`
+- **[tests.yml](.github/workflows/tests.yml)** — installs `lit` + `filecheck` via pip, then runs `./mill filechecks.run`
+
+Both workflows cache `out/` for incremental Mill builds and include a clean-retry fallback in case a stale cache causes a spurious failure.
+
 ## Language grammar
 
-The target language grammar is documented in [parser/syntax.md](parser/syntax.md) (LaTeX math notation). It covers:
-
-- Literals: `Int`, `Double`, `String`, `Bool`, `Nil`, and built-in primitives (`map`, `filter`, `foldLeft`, `foldRight`)
-- Expressions: unary/binary ops, variables, function calls, `if/then/else`, enum constructors, `match`, lambdas, tuples
-- Declarations: `val`, `type alias`, `def` (with optional type parameters), `enum`
-- Types: `Int`, `Double`, `String`, `Bool`, `List[τ]`, function `τ → τ`, tuples, type variables
-
-## Formatting conventions
-
-Scalafmt is configured in [.scalafmt.conf](.scalafmt.conf) for Scala 3 syntax:
-- New-style Scala 3 syntax (`convertToNewSyntax`, `removeOptionalBraces`)
-- Trailing commas on multi-line argument lists
-- `redundantBraces` rewrite rule enabled
-
-CI enforces formatting via `./mill checkFormat` (see [.github/workflows/format.yml](.github/workflows/format.yml)).
+The formal grammar is in [parser/syntax.md](parser/syntax.md) (LaTeX BNF). A prose summary is in the [README](README.md).
