@@ -1,0 +1,33 @@
+// RUN: choco-opt %s | filecheck %s
+
+val x = if true then 1 else 0
+val y = if 1 < 2 then if true then 10 else 20 else 30
+
+enum Shape {
+  case Circle(r: Int)
+  case Rect(w: Int, h: Int)
+}
+
+val area = Circle(5) match {
+  case Circle(r) => r * r
+  case Rect(w, h) => w * h
+}
+
+// CHECK: Parsing succeeded.
+// CHECK: "chocola.if"({{.*}}) ({
+// CHECK:   "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()
+// CHECK: }, {
+// CHECK:   "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()
+// CHECK: }) : (!chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.enum"() <{sym = "Shape", typeParams = ""}> ({
+// CHECK:   "chocola.enum_case"() <{sym = "Circle", fields = "r: TInt"}> : () -> ()
+// CHECK:   "chocola.enum_case"() <{sym = "Rect", fields = "w: TInt, h: TInt"}> : () -> ()
+// CHECK: }) : () -> ()
+// CHECK: "chocola.construct"({{.*}}) <{ctor = "Circle"}> : (!chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.match"({{.*}}) ({
+// CHECK:   "chocola.case"() <{ctor = "Circle"}> ({
+// CHECK:   ^bb0(%6: !chocola.unknown):
+// CHECK:     {{.*}} "chocola.binop"(%6, %6) <{op = "*"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK:   "chocola.case"() <{ctor = "Rect"}> ({
+// CHECK:   ^bb0(%6: !chocola.unknown, %7: !chocola.unknown):
+// CHECK:     {{.*}} "chocola.binop"(%6, %7) <{op = "*"}> : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown

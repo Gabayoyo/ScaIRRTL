@@ -1,4 +1,4 @@
-// RUN: chocola-parse %s | filecheck %s
+// RUN: choco-opt --dump-ast %s | filecheck %s
 
 // Type alias
 type MyInt = Int

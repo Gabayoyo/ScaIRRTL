@@ -16,13 +16,24 @@ object `package` extends ChocoLaModule:
         override def mvnDeps = Seq(
             mvn"com.lihaoyi::fastparse:3.1.1"
         )
+    object dialects extends ChocoLaModule:
+        override def repositoriesTask = Task.Anon {
+            super.repositoriesTask() ++ Seq(
+                coursier.MavenRepository(
+                    "https://central.sonatype.com/repository/maven-snapshots"
+                )
+            )
+        }
+        override def mvnDeps = Seq(
+            mvn"io.github.edin-dal::scair-core::0.0.0-1-03c928-SNAPSHOT"
+        )
+        override def moduleDeps = Seq(parser)
+
     object main extends ChocoLaModule:
         override def mvnDeps = Seq(
             mvn"com.github.alexarchambault::case-app:2.1.0"
         )
-        override def moduleDeps = Seq(
-            parser
-        )
+        override def moduleDeps = Seq(parser, dialects)
 
 
     object filechecks extends Module:
@@ -33,7 +44,7 @@ object `package` extends ChocoLaModule:
                     propagateEnv = true,
                     stdout = os.Inherit,
                     stderr = os.Inherit,
-                    env = Map("CHOCOLA_PARSE" -> launcher.toString)
+                    env = Map("CHOCO_OPT" -> launcher.toString)
                 )
 
     // Top level commands and helpers

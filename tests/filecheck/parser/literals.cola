@@ -1,4 +1,4 @@
-// RUN: chocola-parse %s | filecheck %s
+// RUN: choco-opt --dump-ast %s | filecheck %s
 
 val i = 42
 val d = 3.14

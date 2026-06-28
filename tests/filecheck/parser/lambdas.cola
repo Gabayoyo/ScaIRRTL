@@ -1,4 +1,4 @@
-// RUN: chocola-parse %s | filecheck %s
+// RUN: choco-opt --dump-ast %s | filecheck %s
 
 // Single-parameter lambda
 val double = (x: Int) => x * 2

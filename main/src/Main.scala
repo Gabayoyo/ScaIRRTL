@@ -2,14 +2,15 @@ package chocola.main
 
 import caseapp.{CaseApp, RemainingArgs}
 
+import chocola.dialects.lowerProgram
 import chocola.parser.parseFile
+import scair.print.AssemblyPrinter
 
-case class Options()
+case class Options(dumpAst: Boolean = false)
 
 object Main extends CaseApp[Options]:
 
   def run(options: Options, remainingArgs: RemainingArgs): Unit =
-    // get the unique file from remainingArgs or error out
     val file = remainingArgs.all match
       case Seq(file) => file
       case _         =>
@@ -18,7 +19,15 @@ object Main extends CaseApp[Options]:
         )
 
     parseFile(file) match
-      case Some(value) =>
+      case Some(ast) =>
         println("Parsing succeeded.")
-        println(value)
+        if options.dumpAst then println(ast)
+        else
+          val printer =
+            AssemblyPrinter(p = java.io.OutputStreamWriter(System.out))
+          lowerProgram(ast).foreach { op =>
+            op.customPrint(printer)
+            printer.print("\n")
+          }
+          printer.flush()
       case None => println("Parsing failed.")
