@@ -8,9 +8,9 @@ val f = false
 val n = Nil
 
 // CHECK: Parsing succeeded.
-// CHECK: ValDecl(i,Lit(IntLit(42)))
-// CHECK: ValDecl(d,Lit(DoubleLit(3.14)))
-// CHECK: ValDecl(s,Lit(StrLit(hello)))
-// CHECK: ValDecl(t,Lit(BoolLit(true)))
-// CHECK: ValDecl(f,Lit(BoolLit(false)))
-// CHECK: ValDecl(n,Lit(NilLit))
+// CHECK: ValDecl(i,Lit(IntLit(42),Some(TInt)))
+// CHECK: ValDecl(d,Lit(DoubleLit(3.14),Some(TDouble)))
+// CHECK: ValDecl(s,Lit(StrLit(hello),Some(TString)))
+// CHECK: ValDecl(t,Lit(BoolLit(true),Some(TBool)))
+// CHECK: ValDecl(f,Lit(BoolLit(false),Some(TBool)))
+// CHECK: ValDecl(n,Lit(NilLit,Some(TList(TName(_)))))

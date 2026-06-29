@@ -3,6 +3,7 @@ package chocola.main
 import caseapp.{CaseApp, RemainingArgs}
 
 import chocola.dialects.lowerProgram
+import chocola.parser.TypeInferencer
 import chocola.parser.parseFile
 import scair.print.AssemblyPrinter
 
@@ -21,6 +22,8 @@ object Main extends CaseApp[Options]:
     parseFile(file) match
       case Some(ast) =>
         println("Parsing succeeded.")
+        val typeErrors = TypeInferencer().inferProgram(ast)
+        typeErrors.foreach(e => System.err.println(s"Type error: ${e.msg}"))
         if options.dumpAst then println(ast)
         else
           val printer =

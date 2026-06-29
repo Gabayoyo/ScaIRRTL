@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+// Tuple type is the product of element types.
+val pair   = (1, true)
+val triple = (1, 2, 3)
+val mixed  = (42, 3.14, "hi")
+
+// CHECK: Tuple(List(Lit(IntLit(1),Some(TInt)), Lit(BoolLit(true),Some(TBool))),Some(TTuple(List(TInt, TBool))))
+// CHECK: Tuple(List(Lit(IntLit(1),Some(TInt)), Lit(IntLit(2),Some(TInt)), Lit(IntLit(3),Some(TInt))),Some(TTuple(List(TInt, TInt, TInt))))
+// CHECK: Tuple(List(Lit(IntLit(42),Some(TInt)), Lit(DoubleLit(3.14),Some(TDouble)), Lit(StrLit(hi),Some(TString))),Some(TTuple(List(TInt, TDouble, TString))))

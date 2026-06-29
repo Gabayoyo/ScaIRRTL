@@ -1,0 +1,10 @@
+// RUN: choco-opt %s | filecheck %s
+// IR-level: func block args use the declared parameter types.
+
+def add(x: Int, y: Int): Int = x + y
+
+// CHECK: "chocola.func"() <{sym = "add"}> ({
+// CHECK: ^bb0(%0: !chocola.int, %1: !chocola.int):
+// CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
+// CHECK: }) : () -> !chocola.int

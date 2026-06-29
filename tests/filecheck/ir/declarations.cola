@@ -19,20 +19,20 @@ enum Tree[a] {
 // CHECK: Parsing succeeded.
 // CHECK: "chocola.type_alias"() <{sym = "MyInt", aliased = "TInt"}> : () -> ()
 // CHECK: "chocola.func"() <{sym = "double"}> ({
-// CHECK: ^bb0(%0: !chocola.unknown):
-// CHECK:   %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.unknown
-// CHECK:   %2 = "chocola.mul"(%0, %1) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK:   "chocola.return"(%2) : (!chocola.unknown) -> ()
-// CHECK: }) : () -> !chocola.unknown
+// CHECK: ^bb0(%0: !chocola.int):
+// CHECK:   %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// CHECK:   %2 = "chocola.mul"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
+// CHECK: }) : () -> !chocola.int
 // CHECK: "chocola.func"() <{sym = "identity"}> ({
 // CHECK: ^bb0(%0: !chocola.unknown):
 // CHECK:   "chocola.return"(%0) : (!chocola.unknown) -> ()
 // CHECK: }) : () -> !chocola.unknown
 // CHECK: "chocola.func"() <{sym = "add"}> ({
-// CHECK: ^bb0(%0: !chocola.unknown, %1: !chocola.unknown):
-// CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
-// CHECK:   "chocola.return"(%2) : (!chocola.unknown) -> ()
-// CHECK: }) : () -> !chocola.unknown
+// CHECK: ^bb0(%0: !chocola.int, %1: !chocola.int):
+// CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
+// CHECK: }) : () -> !chocola.int
 // CHECK: "chocola.enum"() <{sym = "Color", typeParams = ""}> ({
 // CHECK:   "chocola.enum_case"() <{sym = "Red", fields = ""}> : () -> ()
 // CHECK:   "chocola.enum_case"() <{sym = "Green", fields = ""}> : () -> ()

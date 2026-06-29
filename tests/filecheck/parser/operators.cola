@@ -19,12 +19,12 @@ val notExpr = !true
 val lst = 1 :: 2 :: Nil
 
 // CHECK: Parsing succeeded.
-// CHECK: ValDecl(add,BinOp(+,Lit(IntLit(1)),Lit(IntLit(2))))
-// CHECK: ValDecl(mul,BinOp(*,Lit(IntLit(3)),Lit(IntLit(4))))
-// CHECK: ValDecl(prec,BinOp(+,Lit(IntLit(1)),BinOp(*,Lit(IntLit(2)),Lit(IntLit(3)))))
-// CHECK: ValDecl(lt,BinOp(<,Lit(IntLit(1)),Lit(IntLit(2))))
-// CHECK: ValDecl(eq,BinOp(==,Lit(IntLit(1)),Lit(IntLit(1))))
-// CHECK: ValDecl(andExpr,BinOp(&&,Lit(BoolLit(true)),Lit(BoolLit(false))))
-// CHECK: ValDecl(orExpr,BinOp(||,Lit(BoolLit(true)),Lit(BoolLit(false))))
-// CHECK: ValDecl(notExpr,UnOp(!,Lit(BoolLit(true))))
-// CHECK: ValDecl(lst,BinOp(::,Lit(IntLit(1)),BinOp(::,Lit(IntLit(2)),Lit(NilLit))))
+// CHECK: ValDecl(add,BinOp(+,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TInt)))
+// CHECK: ValDecl(mul,BinOp(*,Lit(IntLit(3),Some(TInt)),Lit(IntLit(4),Some(TInt)),Some(TInt)))
+// CHECK: ValDecl(prec,BinOp(+,Lit(IntLit(1),Some(TInt)),BinOp(*,Lit(IntLit(2),Some(TInt)),Lit(IntLit(3),Some(TInt)),Some(TInt)),Some(TInt)))
+// CHECK: ValDecl(lt,BinOp(<,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TBool)))
+// CHECK: ValDecl(eq,BinOp(==,Lit(IntLit(1),Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TBool)))
+// CHECK: ValDecl(andExpr,BinOp(&&,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool)))
+// CHECK: ValDecl(orExpr,BinOp(||,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool)))
+// CHECK: ValDecl(notExpr,UnOp(!,Lit(BoolLit(true),Some(TBool)),Some(TBool)))
+// CHECK: ValDecl(lst,BinOp(::,Lit(IntLit(1),Some(TInt)),BinOp(::,Lit(IntLit(2),Some(TInt)),Lit(NilLit,Some(TList(TName(_)))),Some(TList(TInt))),Some(TList(TInt))))

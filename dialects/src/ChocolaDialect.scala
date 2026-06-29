@@ -17,6 +17,19 @@ final case class UnknownType()
 val unknown: UnknownType = UnknownType()
 
 // ---------------------------------------------------------------------------
+// Concrete type attribute — emitted after type inference.
+// Stores the type as a chocola-namespaced string so all AST types (including
+// parametric ones) round-trip through assembly without requiring SCAIR macro
+// support for nested Attribute fields.
+// ---------------------------------------------------------------------------
+
+final case class TypeAttr(tpe: StringData)
+    extends DerivedAttribute["chocola.type"]
+    with TypeAttribute derives AttrDefs:
+  override def customPrint(p: scair.print.Printer) = p.print(s"!${tpe.data}")
+  override def printParameters(p: scair.print.Printer) = ()
+
+// ---------------------------------------------------------------------------
 // Operations — all untyped (Operand[Attribute] / Result[Attribute])
 // No customPrint / AssemblyFormat: generic ScaIR assembly output is used.
 // ---------------------------------------------------------------------------
@@ -224,7 +237,7 @@ case class EnumCaseDeclOp(
 // ---------------------------------------------------------------------------
 
 val ChocolaDialect = summonDialect[
-  EmptyTuple,
+  (UnknownType, TypeAttr),
   (
       ConstantOp,
       AddOp,

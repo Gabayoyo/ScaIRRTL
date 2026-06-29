@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+// Logical operators require and produce TBool.
+val andE = true && false
+val orE  = true || false
+val notE = !true
+
+// CHECK: BinOp(&&,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool))
+// CHECK: BinOp(||,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool))
+// CHECK: UnOp(!,Lit(BoolLit(true),Some(TBool)),Some(TBool))

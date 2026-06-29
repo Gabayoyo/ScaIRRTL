@@ -8,9 +8,9 @@ val f = false
 val n = Nil
 
 // CHECK: Parsing succeeded.
-// CHECK: "chocola.constant"() <{value = "42"}> : () -> !chocola.unknown
-// CHECK: "chocola.constant"() <{value = "3.14"}> : () -> !chocola.unknown
-// CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.unknown
-// CHECK: "chocola.constant"() <{value = "true"}> : () -> !chocola.unknown
-// CHECK: "chocola.constant"() <{value = "false"}> : () -> !chocola.unknown
-// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.unknown
+// CHECK: "chocola.constant"() <{value = "42"}> : () -> !chocola.int
+// CHECK: "chocola.constant"() <{value = "3.14"}> : () -> !chocola.double
+// CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.string
+// CHECK: "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
+// CHECK: "chocola.constant"() <{value = "false"}> : () -> !chocola.bool
+// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<chocola.unknown>

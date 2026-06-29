@@ -1,0 +1,8 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+// if/else branches are typed; result type comes from the then-branch.
+val x = if true then 1 else 0
+val y = if 1 < 2 then true else false
+
+// CHECK: If(Lit(BoolLit(true),Some(TBool)),Lit(IntLit(1),Some(TInt)),Lit(IntLit(0),Some(TInt)),Some(TInt))
+// CHECK: If(BinOp(<,{{.*}},Some(TBool)),Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool))

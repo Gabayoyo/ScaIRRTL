@@ -1,0 +1,13 @@
+// RUN: choco-opt %s | filecheck %s
+// IR-level: lambda block args carry the parameter types from the AST.
+
+val f = (x: Int) => x + 1
+
+// The lambda body block arg has type !chocola.int.
+// The lambda result has type !chocola.fun<chocola.int, chocola.int>.
+// CHECK: "chocola.lambda"() ({
+// CHECK: ^bb0(%0: !chocola.int):
+// CHECK:   %1 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK:   "chocola.yield"(%2) : (!chocola.int) -> ()
+// CHECK: }) : () -> !chocola.fun<chocola.int, chocola.int>

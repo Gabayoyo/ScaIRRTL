@@ -21,13 +21,13 @@ type Alias = Int
 def poly[a](x: a): a = x
 
 // CHECK: Parsing succeeded.
-// CHECK: DefDecl(useInt,List(),List((x,TInt)),TInt,Var(x))
-// CHECK: DefDecl(useBool,List(),List((x,TBool)),TBool,Var(x))
-// CHECK: DefDecl(useDouble,List(),List((x,TDouble)),TDouble,Var(x))
-// CHECK: DefDecl(useString,List(),List((x,TString)),TString,Var(x))
-// CHECK: DefDecl(useList,List(),List((xs,TList(TInt))),TList(TInt),Var(xs))
-// CHECK: DefDecl(higherOrder,List(),List((f,TFun(TInt,TInt))),TInt,Apply(Var(f),List(Lit(IntLit(0)))))
+// CHECK: DefDecl(useInt,List(),List((x,TInt)),TInt,Var(x,Some(TInt)))
+// CHECK: DefDecl(useBool,List(),List((x,TBool)),TBool,Var(x,Some(TBool)))
+// CHECK: DefDecl(useDouble,List(),List((x,TDouble)),TDouble,Var(x,Some(TDouble)))
+// CHECK: DefDecl(useString,List(),List((x,TString)),TString,Var(x,Some(TString)))
+// CHECK: DefDecl(useList,List(),List((xs,TList(TInt))),TList(TInt),Var(xs,Some(TList(TInt))))
+// CHECK: DefDecl(higherOrder,List(),List((f,TFun(TInt,TInt))),TInt,Apply(Var(f,Some(TFun(TInt,TInt))),List(Lit(IntLit(0),Some(TInt))),Some(TInt)))
 // CHECK: DefDecl(curried,List(),List((f,TFun(TInt,TFun(TInt,TInt)))),TInt
-// CHECK: DefDecl(usePair,List(),List((p,TTuple(List(TInt, TBool)))),TInt,Lit(IntLit(0)))
+// CHECK: DefDecl(usePair,List(),List((p,TTuple(List(TInt, TBool)))),TInt,Lit(IntLit(0),Some(TInt)))
 // CHECK: TypeDecl(Alias,TInt)
-// CHECK: DefDecl(poly,List(a),List((x,TName(a))),TName(a),Var(x))
+// CHECK: DefDecl(poly,List(a),List((x,TName(a))),TName(a),Var(x,Some(TName(a))))

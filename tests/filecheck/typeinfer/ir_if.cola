@@ -1,0 +1,12 @@
+// RUN: choco-opt %s | filecheck %s
+// IR-level: if-op condition is !chocola.bool; result is the branch type.
+
+val x = if true then 42 else 0
+
+// CHECK: "chocola.if"({{.*}}) ({
+// CHECK:   %1 = "chocola.constant"() <{value = "42"}> : () -> !chocola.int
+// CHECK:   "chocola.yield"(%1) : (!chocola.int) -> ()
+// CHECK: }, {
+// CHECK:   %1 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK:   "chocola.yield"(%1) : (!chocola.int) -> ()
+// CHECK: }) : (!chocola.bool) -> !chocola.int

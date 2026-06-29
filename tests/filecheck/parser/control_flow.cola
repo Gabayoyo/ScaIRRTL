@@ -19,7 +19,7 @@ val area = Circle(5) match {
 }
 
 // CHECK: Parsing succeeded.
-// CHECK: ValDecl(x,If(Lit(BoolLit(true)),Lit(IntLit(1)),Lit(IntLit(0))))
-// CHECK: ValDecl(y,If(BinOp(<,Lit(IntLit(1)),Lit(IntLit(2))),If(Lit(BoolLit(true)),Lit(IntLit(10)),Lit(IntLit(20))),Lit(IntLit(30))))
+// CHECK: ValDecl(x,If(Lit(BoolLit(true),Some(TBool)),Lit(IntLit(1),Some(TInt)),Lit(IntLit(0),Some(TInt)),Some(TInt)))
+// CHECK: ValDecl(y,If(BinOp(<,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TBool)),If(Lit(BoolLit(true),Some(TBool)),Lit(IntLit(10),Some(TInt)),Lit(IntLit(20),Some(TInt)),Some(TInt)),Lit(IntLit(30),Some(TInt)),Some(TInt)))
 // CHECK: EnumDecl(Shape,List(),List(EnumCase(Circle,List((r,TInt))), EnumCase(Rect,List((w,TInt), (h,TInt)))))
-// CHECK: ValDecl(area,Match(Construct(Circle,List(Lit(IntLit(5)))),List(MatchCase(Circle,List(r),BinOp(*,Var(r),Var(r))), MatchCase(Rect,List(w, h),BinOp(*,Var(w),Var(h))))))
+// CHECK: ValDecl(area,Match(Construct(Circle,List(Lit(IntLit(5),Some(TInt))),Some(TName(Shape))),List(MatchCase(Circle,List(r),BinOp(*,Var(r,Some(TName(_))),Var(r,Some(TName(_))),Some(TName(_)))), MatchCase(Rect,List(w, h),BinOp(*,Var(w,Some(TName(_))),Var(h,Some(TName(_))),Some(TName(_))))),Some(TName(_))))

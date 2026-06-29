@@ -27,8 +27,8 @@ enum Tree[a] {
 
 // CHECK: Parsing succeeded.
 // CHECK: TypeDecl(MyInt,TInt)
-// CHECK: DefDecl(double,List(),List((x,TInt)),TInt,BinOp(*,Var(x),Lit(IntLit(2))))
-// CHECK: DefDecl(identity,List(a),List((x,TName(a))),TName(a),Var(x))
-// CHECK: DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x),Var(y)))
+// CHECK: DefDecl(double,List(),List((x,TInt)),TInt,BinOp(*,Var(x,Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TInt)))
+// CHECK: DefDecl(identity,List(a),List((x,TName(a))),TName(a),Var(x,Some(TName(a))))
+// CHECK: DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt)))
 // CHECK: EnumDecl(Color,List(),List(EnumCase(Red,List()), EnumCase(Green,List()), EnumCase(Blue,List())))
 // CHECK: EnumDecl(Tree,List(a),List(EnumCase(Leaf,List((value,TName(a)))), EnumCase(Node,List((left,TName(Tree)), (right,TName(Tree))))))

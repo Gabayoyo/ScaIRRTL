@@ -1,0 +1,12 @@
+// RUN: choco-opt %s | filecheck %s
+// IR-level: literal constants carry typed results instead of !chocola.unknown.
+
+val i = 42
+val d = 3.14
+val s = "hello"
+val b = true
+
+// CHECK: "chocola.constant"() <{value = "42"}> : () -> !chocola.int
+// CHECK: "chocola.constant"() <{value = "3.14"}> : () -> !chocola.double
+// CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.string
+// CHECK: "chocola.constant"() <{value = "true"}> : () -> !chocola.bool

@@ -15,15 +15,15 @@ val area = Circle(5) match {
 
 // CHECK: Parsing succeeded.
 // CHECK: "chocola.if"({{.*}}) ({
-// CHECK:   "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()
+// CHECK:   "chocola.yield"({{.*}}) : (!chocola.int) -> ()
 // CHECK: }, {
-// CHECK:   "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()
-// CHECK: }) : (!chocola.unknown) -> !chocola.unknown
+// CHECK:   "chocola.yield"({{.*}}) : (!chocola.int) -> ()
+// CHECK: }) : (!chocola.bool) -> !chocola.int
 // CHECK: "chocola.enum"() <{sym = "Shape", typeParams = ""}> ({
 // CHECK:   "chocola.enum_case"() <{sym = "Circle", fields = "r: TInt"}> : () -> ()
 // CHECK:   "chocola.enum_case"() <{sym = "Rect", fields = "w: TInt, h: TInt"}> : () -> ()
 // CHECK: }) : () -> ()
-// CHECK: "chocola.construct"({{.*}}) <{ctor = "Circle"}> : (!chocola.unknown) -> !chocola.unknown
+// CHECK: "chocola.construct"({{.*}}) <{ctor = "Circle"}> : (!chocola.int) -> !chocola.unknown
 // CHECK: "chocola.match"({{.*}}) ({
 // CHECK:   "chocola.case"() <{ctor = "Circle"}> ({
 // CHECK:   ^bb0(%6: !chocola.unknown):

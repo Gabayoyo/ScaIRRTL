@@ -1,0 +1,16 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+// Comparison operators produce TBool regardless of operand type.
+val lt   = 1 < 2
+val gt   = 3 > 1
+val leq  = 1 <= 1
+val geq  = 2 >= 1
+val eq   = 1 == 1
+val neq  = 1 != 2
+
+// CHECK: BinOp(<,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TBool))
+// CHECK: BinOp(>,Lit(IntLit(3),Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TBool))
+// CHECK: BinOp(<=,Lit(IntLit(1),Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TBool))
+// CHECK: BinOp(>=,Lit(IntLit(2),Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TBool))
+// CHECK: BinOp(==,Lit(IntLit(1),Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TBool))
+// CHECK: BinOp(!=,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TBool))
