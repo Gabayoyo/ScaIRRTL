@@ -31,21 +31,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && ./mill format"
-          },
-          {
-            "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && BRANCH=$(git rev-parse --abbrev-ref HEAD) && [ \"$BRANCH\" != \"main\" ] && echo \"\\nTo push: git -C \\\"$CLAUDE_PROJECT_DIR\\\" push -u origin $BRANCH\" || true"
-          }
-        ]
-      }
     ]
   }
 }
