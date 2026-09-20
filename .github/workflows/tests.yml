@@ -26,7 +26,7 @@ jobs:
         python-version: '3.12'
 
     - name: Install lit and filecheck
-      run: pip install lit filecheck
+      run: pip install "lit<23" filecheck
 
     # Restore Mill's incremental build output to avoid recompiling from scratch.
     # The restore-keys prefix means any prior run's cache is better than nothing.

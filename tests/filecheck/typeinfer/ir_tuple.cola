@@ -1,0 +1,6 @@
+// RUN: choco-opt %s | filecheck %s
+// IR-level: tuple element types are structured type attributes.
+
+val pair = (1, true)
+
+// CHECK: "chocola.tuple"({{.*}}) : (!chocola.int, !chocola.bool) -> !chocola.tuple<!chocola.int, !chocola.bool>

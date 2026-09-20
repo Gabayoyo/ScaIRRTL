@@ -13,4 +13,4 @@ val n = Nil
 // CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.string
 // CHECK: "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
 // CHECK: "chocola.constant"() <{value = "false"}> : () -> !chocola.bool
-// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<chocola.unknown>
+// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<!chocola.unknown>

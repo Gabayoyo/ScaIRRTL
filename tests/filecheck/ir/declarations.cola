@@ -1,6 +1,7 @@
 // RUN: choco-opt %s | filecheck %s
 
 type MyInt = Int
+type IntList = List[Int]
 def double(x: Int): Int = x * 2
 def identity[a](x: a): a = x
 def add(x: Int, y: Int): Int = x + y
@@ -17,28 +18,29 @@ enum Tree[a] {
 }
 
 // CHECK: Parsing succeeded.
-// CHECK: "chocola.type_alias"() <{sym = "MyInt", aliased = "TInt"}> : () -> ()
-// CHECK: "chocola.func"() <{sym = "double"}> ({
+// CHECK: "chocola.type_alias"() <{sym = @MyInt, aliased = !chocola.int}> : () -> ()
+// CHECK: "chocola.type_alias"() <{sym = @IntList, aliased = !chocola.list<!chocola.int>}> : () -> ()
+// CHECK: "chocola.func"() <{sym = @double, typeParams = []}> ({
 // CHECK: ^bb0(%0: !chocola.int):
 // CHECK:   %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
 // CHECK:   %2 = "chocola.mul"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
 // CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
 // CHECK: }) : () -> !chocola.int
-// CHECK: "chocola.func"() <{sym = "identity"}> ({
-// CHECK: ^bb0(%0: !chocola.unknown):
-// CHECK:   "chocola.return"(%0) : (!chocola.unknown) -> ()
-// CHECK: }) : () -> !chocola.unknown
-// CHECK: "chocola.func"() <{sym = "add"}> ({
+// CHECK: "chocola.func"() <{sym = @identity, typeParams = [@a]}> ({
+// CHECK: ^bb0(%0: !chocola.named<@a>):
+// CHECK:   "chocola.return"(%0) : (!chocola.named<@a>) -> ()
+// CHECK: }) : () -> !chocola.named<@a>
+// CHECK: "chocola.func"() <{sym = @add, typeParams = []}> ({
 // CHECK: ^bb0(%0: !chocola.int, %1: !chocola.int):
 // CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
 // CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
 // CHECK: }) : () -> !chocola.int
-// CHECK: "chocola.enum"() <{sym = "Color", typeParams = ""}> ({
-// CHECK:   "chocola.enum_case"() <{sym = "Red", fields = ""}> : () -> ()
-// CHECK:   "chocola.enum_case"() <{sym = "Green", fields = ""}> : () -> ()
-// CHECK:   "chocola.enum_case"() <{sym = "Blue", fields = ""}> : () -> ()
+// CHECK: "chocola.enum"() <{sym = @Color, typeParams = []}> ({
+// CHECK:   "chocola.enum_case"() <{sym = @Red, fields = []}> : () -> ()
+// CHECK:   "chocola.enum_case"() <{sym = @Green, fields = []}> : () -> ()
+// CHECK:   "chocola.enum_case"() <{sym = @Blue, fields = []}> : () -> ()
 // CHECK: }) : () -> ()
-// CHECK: "chocola.enum"() <{sym = "Tree", typeParams = "a"}> ({
-// CHECK:   "chocola.enum_case"() <{sym = "Leaf", fields = "value: TName(a)"}> : () -> ()
-// CHECK:   "chocola.enum_case"() <{sym = "Node", fields = "left: TName(Tree), right: TName(Tree)"}> : () -> ()
+// CHECK: "chocola.enum"() <{sym = @Tree, typeParams = [@a]}> ({
+// CHECK:   "chocola.enum_case"() <{sym = @Leaf, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
+// CHECK:   "chocola.enum_case"() <{sym = @Node, fields = [#chocola.enum_field<@left, !chocola.named<@Tree>>, #chocola.enum_field<@right, !chocola.named<@Tree>>]}> : () -> ()
 // CHECK: }) : () -> ()

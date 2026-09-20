@@ -19,15 +19,15 @@ val area = Circle(5) match {
 // CHECK: }, {
 // CHECK:   "chocola.yield"({{.*}}) : (!chocola.int) -> ()
 // CHECK: }) : (!chocola.bool) -> !chocola.int
-// CHECK: "chocola.enum"() <{sym = "Shape", typeParams = ""}> ({
-// CHECK:   "chocola.enum_case"() <{sym = "Circle", fields = "r: TInt"}> : () -> ()
-// CHECK:   "chocola.enum_case"() <{sym = "Rect", fields = "w: TInt, h: TInt"}> : () -> ()
+// CHECK: "chocola.enum"() <{sym = @Shape, typeParams = []}> ({
+// CHECK:   "chocola.enum_case"() <{sym = @Circle, fields = [#chocola.enum_field<@r, !chocola.int>]}> : () -> ()
+// CHECK:   "chocola.enum_case"() <{sym = @Rect, fields = [#chocola.enum_field<@w, !chocola.int>, #chocola.enum_field<@h, !chocola.int>]}> : () -> ()
 // CHECK: }) : () -> ()
-// CHECK: "chocola.construct"({{.*}}) <{ctor = "Circle"}> : (!chocola.int) -> !chocola.unknown
+// CHECK: "chocola.construct"({{.*}}) <{ctor = @Circle}> : (!chocola.int) -> !chocola.named<@Shape>
 // CHECK: "chocola.match"({{.*}}) ({
-// CHECK:   "chocola.case"() <{ctor = "Circle"}> ({
+// CHECK:   "chocola.case"() <{ctor = @Circle}> ({
 // CHECK:   ^bb0(%6: !chocola.unknown):
 // CHECK:     {{.*}} "chocola.mul"(%6, %6) : (!chocola.unknown, !chocola.unknown) -> !chocola.int
-// CHECK:   "chocola.case"() <{ctor = "Rect"}> ({
+// CHECK:   "chocola.case"() <{ctor = @Rect}> ({
 // CHECK:   ^bb0(%6: !chocola.unknown, %7: !chocola.unknown):
 // CHECK:     {{.*}} "chocola.mul"(%6, %7) : (!chocola.unknown, !chocola.unknown) -> !chocola.int

@@ -5,29 +5,65 @@ import scair.dialects.builtin.*
 import scair.ir.*
 
 // ---------------------------------------------------------------------------
-// Placeholder type — all SSA values are !chocola.unknown until type inference
+// Types
 // ---------------------------------------------------------------------------
+
+sealed trait ChocolaType extends TypeAttribute
 
 final case class UnknownType()
     extends DerivedAttribute["chocola.unknown"]
-    with TypeAttribute derives AttrDefs:
-  override def customPrint(p: scair.print.Printer) = p.print("!chocola.unknown")
-  override def printParameters(p: scair.print.Printer) = ()
+    with ChocolaType derives AttrDefs
 
 val unknown: UnknownType = UnknownType()
 
-// ---------------------------------------------------------------------------
-// Concrete type attribute — emitted after type inference.
-// Stores the type as a chocola-namespaced string so all AST types (including
-// parametric ones) round-trip through assembly without requiring SCAIR macro
-// support for nested Attribute fields.
-// ---------------------------------------------------------------------------
+final case class IntType()
+    extends DerivedAttribute["chocola.int"]
+    with ChocolaType derives AttrDefs
 
-final case class TypeAttr(tpe: StringData)
-    extends DerivedAttribute["chocola.type"]
-    with TypeAttribute derives AttrDefs:
-  override def customPrint(p: scair.print.Printer) = p.print(s"!${tpe.data}")
-  override def printParameters(p: scair.print.Printer) = ()
+final case class DoubleType()
+    extends DerivedAttribute["chocola.double"]
+    with ChocolaType derives AttrDefs
+
+final case class StringType()
+    extends DerivedAttribute["chocola.string"]
+    with ChocolaType derives AttrDefs
+
+final case class BoolType()
+    extends DerivedAttribute["chocola.bool"]
+    with ChocolaType derives AttrDefs
+
+final case class ListType(element: ChocolaType)
+    extends DerivedAttribute["chocola.list"]
+    with ChocolaType derives AttrDefs
+
+final case class FunType(from: ChocolaType, to: ChocolaType)
+    extends DerivedAttribute["chocola.fun"]
+    with ChocolaType derives AttrDefs
+
+/** Work around a ScaIR derived-attribute printing bug: the generated parser
+  * treats an ArrayAttribute parameter as a flattened comma-separated list, but
+  * the default printer includes the array's square brackets. Keep this custom
+  * printer until ScaIR's generated printer and parser agree.
+  */
+final case class TupleType(elements: ArrayAttribute[ChocolaType])
+    extends DerivedAttribute["chocola.tuple"]
+    with ChocolaType derives AttrDefs:
+
+  override def customPrint(p: scair.print.Printer) =
+    p.print("!chocola.tuple<")
+    elements.data.zipWithIndex.foreach { case (element, index) =>
+      if index > 0 then p.print(", ")
+      p.print(element)
+    }
+    p.print(">")
+
+final case class NamedType(symbol: SymbolRefAttr)
+    extends DerivedAttribute["chocola.named"]
+    with ChocolaType derives AttrDefs
+
+/** A named field and its structured type within an enum case declaration. */
+final case class EnumFieldAttr(fieldName: SymbolRefAttr, fieldType: ChocolaType)
+    extends DerivedAttribute["chocola.enum_field"] derives AttrDefs
 
 // ---------------------------------------------------------------------------
 // Operations — all untyped (Operand[Attribute] / Result[Attribute])
@@ -154,7 +190,7 @@ case class CallOp(
 
 /** Enum constructor application. */
 case class ConstructOp(
-    ctor: StringData,
+    ctor: SymbolRefAttr,
     args: Seq[Operand[Attribute]],
     result: Result[Attribute],
 ) extends DerivedOperation["chocola.construct"]
@@ -184,7 +220,7 @@ case class MatchOp(
 
 /** One match arm; body entry block args are the pattern bindings. */
 case class CaseOp(
-    ctor: StringData,
+    ctor: SymbolRefAttr,
     body: Region,
 ) extends DerivedOperation["chocola.case"] derives OpDefs
 
@@ -208,28 +244,29 @@ case class ReturnOp(
 
 /** Top-level `def` declaration; body entry block args are the parameters. */
 case class FuncDeclOp(
-    sym: StringData,
+    sym: SymbolRefAttr,
+    typeParams: ArrayAttribute[SymbolRefAttr],
     result: Result[Attribute],
     body: Region,
 ) extends DerivedOperation["chocola.func"] derives OpDefs
 
-/** Top-level `type` alias; aliased type is serialised to its toString. */
+/** Top-level `type` alias. */
 case class TypeAliasDeclOp(
-    sym: StringData,
-    aliased: StringData,
+    sym: SymbolRefAttr,
+    aliased: ChocolaType,
 ) extends DerivedOperation["chocola.type_alias"] derives OpDefs
 
 /** Top-level `enum` declaration; body holds EnumCaseDeclOp operations. */
 case class EnumDeclOp(
-    sym: StringData,
-    typeParams: StringData,
+    sym: SymbolRefAttr,
+    typeParams: ArrayAttribute[SymbolRefAttr],
     body: Region,
 ) extends DerivedOperation["chocola.enum"] derives OpDefs
 
 /** One case inside an EnumDeclOp. */
 case class EnumCaseDeclOp(
-    sym: StringData,
-    fields: StringData,
+    sym: SymbolRefAttr,
+    fields: ArrayAttribute[EnumFieldAttr],
 ) extends DerivedOperation["chocola.enum_case"] derives OpDefs
 
 // ---------------------------------------------------------------------------
@@ -237,7 +274,18 @@ case class EnumCaseDeclOp(
 // ---------------------------------------------------------------------------
 
 val ChocolaDialect = summonDialect[
-  (UnknownType, TypeAttr),
+  (
+      UnknownType,
+      IntType,
+      DoubleType,
+      StringType,
+      BoolType,
+      ListType,
+      FunType,
+      TupleType,
+      NamedType,
+      EnumFieldAttr,
+  ),
   (
       ConstantOp,
       AddOp,

@@ -24,7 +24,7 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 ./mill checkFormat
 ```
 
-`pip install lit filecheck` is required for `filechecks.run`.
+`pip install "lit<23" filecheck` is required for `filechecks.run`.
 
 ## Language grammar
 

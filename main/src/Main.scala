@@ -2,7 +2,7 @@ package chocola.main
 
 import caseapp.{CaseApp, RemainingArgs}
 
-import chocola.dialects.lowerProgram
+import chocola.parser.generateProgram
 import chocola.parser.TypeInferencer
 import chocola.parser.parseFile
 import scair.print.AssemblyPrinter
@@ -28,7 +28,7 @@ object Main extends CaseApp[Options]:
         else
           val printer =
             AssemblyPrinter(p = java.io.OutputStreamWriter(System.out))
-          lowerProgram(ast).foreach { op =>
+          generateProgram(ast).foreach { op =>
             op.customPrint(printer)
             printer.print("\n")
           }

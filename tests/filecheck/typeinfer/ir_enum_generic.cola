@@ -1,7 +1,7 @@
 // RUN: choco-opt %s | filecheck %s
 // IR-level: generic match bindings stay !chocola.unknown at the IR level --
 // MatchCase has no AST type slot to carry the (soundly inferred, see
-// typeinfer/enum_generic.cola) rigid type-parameter type through to Lower.scala.
+// typeinfer/enum_generic.cola) rigid type-parameter type through to IrGen.scala.
 // This is a documented, accepted limitation, not a regression.
 
 enum Box[a] {
@@ -12,11 +12,11 @@ val unwrapped = MkBox(7) match {
   case MkBox(v) => v
 }
 
-// CHECK: "chocola.enum"() <{sym = "Box", typeParams = "a"}> ({
-// CHECK:   "chocola.enum_case"() <{sym = "MkBox", fields = "value: TName(a)"}> : () -> ()
+// CHECK: "chocola.enum"() <{sym = @Box, typeParams = [@a]}> ({
+// CHECK:   "chocola.enum_case"() <{sym = @MkBox, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
 // CHECK: }) : () -> ()
-// CHECK: "chocola.construct"({{.*}}) <{ctor = "MkBox"}> : (!chocola.int) -> !chocola.unknown
+// CHECK: "chocola.construct"({{.*}}) <{ctor = @MkBox}> : (!chocola.int) -> !chocola.named<@Box>
 // CHECK: "chocola.match"({{.*}}) ({
-// CHECK:   "chocola.case"() <{ctor = "MkBox"}> ({
+// CHECK:   "chocola.case"() <{ctor = @MkBox}> ({
 // CHECK:   ^bb0(%{{[0-9]+}}: !chocola.unknown):
 // CHECK:     {{.*}} "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()

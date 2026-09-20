@@ -31,20 +31,20 @@ parser/
   src/
     Ast.scala            # AST: Program, Decl, Expr, Type, Literal as Scala 3 enums
     Parser.scala         # fastparse 3 grammar; exports parseFile(path: String): Option[Program]
+    IrGen.scala          # AST → SCAIR IR generation; entry point: generateProgram(Program)
 dialects/
   src/
     ChocolaDialect.scala # SCAIR IR op definitions for the chocola.* dialect
-    Lower.scala          # AST → SCAIR IR lowering; entry point: lowerProgram(Program)
 main/
   src/
-    Main.scala           # CaseApp CLI; parses, lowers, prints SCAIR assembly (--dump-ast skips lowering)
+    Main.scala           # CaseApp CLI; parses, generates, and prints SCAIR assembly
 tests/
   filecheck/
     lit.cfg              # lit configuration; defines the CHOCO_OPT substitution
     parser/              # One .cola test file per language feature
 ```
 
-Module dependency chain: `parser` ← `dialects` ← `main`.
+Module dependency chain: `dialects` ← `parser` ← `main`.
 
 ## Key dependencies
 
@@ -65,15 +65,17 @@ Module dependency chain: `parser` ← `dialects` ← `main`.
 - **`Program.expr` is `Option[Expr]`** so files containing only declarations (like `zero.cola`) parse correctly.
 - **fastparse tuple flattening**: `P[(String, Type)]` is flattened when composed with `~`, so typed-parameter lists are collected via `lambdaParamList: P[List[(String, Type)]]` before being composed further.
 
-## Lowering (dialects module)
+## IR generation (parser module)
 
-`Lower.scala` walks the AST and emits SCAIR operations into a `LoweringContext`, which tracks a name→`Value[Attribute]` environment and a mutable op buffer. The lowering is purely structural (no type inference yet): every SSA value gets `UnknownType` (`!chocola.unknown`).
+`IrGen.scala` walks the typed AST and emits SCAIR operations into an
+`IrGenContext`, which tracks a name→`Value[Attribute]` environment and a
+mutable op buffer.
 
 Key invariants:
-- `lowerExpr` always returns a `Value[Attribute]` (the result SSA value of the last emitted op).
+- `generateExpr` always returns a `Value[Attribute]` (the result SSA value of the last emitted op).
 - Regions with a non-terminator result use `YieldOp`; function bodies use `ReturnOp`.
-- `LambdaOp` and `FuncDeclOp` both open child contexts (`childCtx()`) so inner bindings don't escape.
-- When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a lowering case in `lowerExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.
+- `LambdaOp` and `FuncDeclOp` both open child contexts so inner bindings don't escape.
+- When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a generation case in `generateExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.
 
 ## Testing
 
