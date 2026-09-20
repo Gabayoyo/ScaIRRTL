@@ -27,7 +27,7 @@ val area = Circle(5) match {
 // CHECK: "chocola.match"({{.*}}) ({
 // CHECK:   "chocola.case"() <{ctor = "Circle"}> ({
 // CHECK:   ^bb0(%6: !chocola.unknown):
-// CHECK:     {{.*}} "chocola.mul"(%6, %6) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK:     {{.*}} "chocola.mul"(%6, %6) : (!chocola.unknown, !chocola.unknown) -> !chocola.int
 // CHECK:   "chocola.case"() <{ctor = "Rect"}> ({
 // CHECK:   ^bb0(%6: !chocola.unknown, %7: !chocola.unknown):
-// CHECK:     {{.*}} "chocola.mul"(%6, %7) : (!chocola.unknown, !chocola.unknown) -> !chocola.unknown
+// CHECK:     {{.*}} "chocola.mul"(%6, %7) : (!chocola.unknown, !chocola.unknown) -> !chocola.int

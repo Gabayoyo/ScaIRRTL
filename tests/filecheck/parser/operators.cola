@@ -27,4 +27,4 @@ val lst = 1 :: 2 :: Nil
 // CHECK: ValDecl(andExpr,BinOp(&&,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool)))
 // CHECK: ValDecl(orExpr,BinOp(||,Lit(BoolLit(true),Some(TBool)),Lit(BoolLit(false),Some(TBool)),Some(TBool)))
 // CHECK: ValDecl(notExpr,UnOp(!,Lit(BoolLit(true),Some(TBool)),Some(TBool)))
-// CHECK: ValDecl(lst,BinOp(::,Lit(IntLit(1),Some(TInt)),BinOp(::,Lit(IntLit(2),Some(TInt)),Lit(NilLit,Some(TList(TName(_)))),Some(TList(TInt))),Some(TList(TInt))))
+// CHECK: ValDecl(lst,BinOp(::,Lit(IntLit(1),Some(TInt)),BinOp(::,Lit(IntLit(2),Some(TInt)),Lit(NilLit,Some(TList(TInt))),Some(TList(TInt))),Some(TList(TInt))))

@@ -1,0 +1,24 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+// Generic enum: the type parameter is rigid inside field types, instantiated
+// fresh per Construct call site, and exported/consumed as the bare enum name
+// (type-argument erasure -- the surface grammar has no T[sigma] application
+// syntax for user-defined types, only for List[_]).
+
+enum Box[a] {
+  case MkBox(value: a)
+}
+
+val bi = MkBox(1)
+val bs = MkBox(true)
+
+// Match binding stays rigid (TName(a)), not resolved to a concrete type --
+// the field is genuinely polymorphic at the enum declaration.
+val unwrapped = MkBox(7) match {
+  case MkBox(v) => v
+}
+
+// CHECK: Parsing succeeded.
+// CHECK: EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a))))))
+// CHECK: ValDecl(bi,Construct(MkBox,List(Lit(IntLit(1),Some(TInt))),Some(TName(Box))))
+// CHECK: ValDecl(bs,Construct(MkBox,List(Lit(BoolLit(true),Some(TBool))),Some(TName(Box))))
+// CHECK: ValDecl(unwrapped,Match(Construct(MkBox,List(Lit(IntLit(7),Some(TInt))),Some(TName(Box))),List(MatchCase(MkBox,List(v),Var(v,Some(TName(a))))),Some(TName(a))))

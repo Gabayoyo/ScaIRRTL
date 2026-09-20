@@ -1,0 +1,13 @@
+// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// Per-call-site field consistency: both fields of a single Construct call
+// share the same fresh metavariable substitution for the enum's type
+// parameter, so passing mismatched concrete types is a real type error.
+
+enum Pair2[a] {
+  case MkPair2(first: a, second: a)
+}
+
+val bad = MkPair2(1, true)
+
+// CHECK: Parsing succeeded.
+// CHECK: Type error: Type mismatch: expected TInt but got TBool

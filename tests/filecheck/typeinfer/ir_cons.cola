@@ -3,6 +3,6 @@
 
 val xs = 1 :: 2 :: Nil
 
-// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<chocola.unknown>
-// CHECK: "chocola.cons"({{.*}}) : (!chocola.int, !chocola.list<chocola.unknown>) -> !chocola.list<chocola.int>
+// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<chocola.int>
+// CHECK: "chocola.cons"({{.*}}) : (!chocola.int, !chocola.list<chocola.int>) -> !chocola.list<chocola.int>
 // CHECK: "chocola.cons"({{.*}}) : (!chocola.int, !chocola.list<chocola.int>) -> !chocola.list<chocola.int>

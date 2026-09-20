@@ -1,0 +1,7 @@
+// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// if/else branches must unify to the same type.
+
+val bad = if true then 1 else "no"
+
+// CHECK: Parsing succeeded.
+// CHECK: Type error: Type mismatch: expected TInt but got TString

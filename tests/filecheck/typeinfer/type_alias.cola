@@ -1,0 +1,19 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+// A type alias resolves to its aliased type wherever it's used to type-check
+// a def's body -- the DefDecl's own params/returnType fields still print the
+// raw, unresolved annotation (they're plain AST fields, not mutated by
+// inference), but the body's Var(x,...) shows the alias resolved to TInt via
+// resolveAnnotation's env lookup, and alias-of-alias chains (List[MyInt] via
+// MyIntList) resolve transitively without error.
+
+type MyInt = Int
+type MyIntList = List[MyInt]
+
+def inc(x: MyInt): MyInt = x + 1
+def sumHead(xs: MyIntList): MyInt = 0
+
+// CHECK: Parsing succeeded.
+// CHECK: TypeDecl(MyInt,TInt)
+// CHECK: TypeDecl(MyIntList,TList(TName(MyInt)))
+// CHECK: DefDecl(inc,List(),List((x,TName(MyInt))),TName(MyInt),BinOp(+,Var(x,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)))
+// CHECK: DefDecl(sumHead,List(),List((xs,TName(MyIntList))),TName(MyInt),Lit(IntLit(0),Some(TInt)))
