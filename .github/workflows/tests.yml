@@ -9,9 +9,27 @@ permissions:
   contents: read
 
 jobs:
+  # Build or restore MLIR once, then persist it in cache for downstream jobs.
+  ensure-mlir:
+    name: "Ensure MLIR availability"
+    runs-on: ubuntu-latest
+
+    outputs:
+      mlir-cache-key: ${{ steps.ensure-mlir.outputs.cache-key }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Ensure MLIR availability
+      id: ensure-mlir
+      uses: ./.github/actions/ensure-mlir
+
   filechecks:
     name: "Filechecks"
     runs-on: ubuntu-latest
+    needs:
+      - ensure-mlir
 
     steps:
     - name: Checkout
@@ -19,6 +37,13 @@ jobs:
 
     - name: Coursier cache
       uses: coursier/cache-action@v7
+
+    - name: Restore MLIR build cache
+      uses: actions/cache/restore@v4
+      with:
+        key: ${{ needs.ensure-mlir.outputs.mlir-cache-key }}
+        path: llvm-project/build
+        fail-on-cache-miss: true
 
     - name: Python setup
       uses: actions/setup-python@v5
@@ -44,12 +69,15 @@ jobs:
     - name: Run filechecks (incremental)
       id: cached-run
       continue-on-error: ${{ steps.restore-mill-cache.outputs.cache-matched-key != '' }}
-      run: ./mill filechecks.run
+      run: |
+        export PATH=$PATH:$(pwd)/llvm-project/build/bin/
+        ./mill filechecks.run
 
     # Clean-slate retry, only triggered when the cached incremental run failed.
     - name: Run filechecks (clean retry)
       if: ${{ steps.restore-mill-cache.outputs.cache-matched-key != '' && steps.cached-run.outcome == 'failure' }}
       run: |
+        export PATH=$PATH:$(pwd)/llvm-project/build/bin/
         rm -rf out
         ./mill filechecks.run
 
