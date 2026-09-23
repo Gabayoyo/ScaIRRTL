@@ -67,14 +67,15 @@ Module dependency chain: `dialects` ← `parser` ← `main`.
 
 ## IR generation (parser module)
 
-`IrGen.scala` walks the typed AST and emits SCAIR operations into an
-`IrGenContext`, which tracks a name→`Value[Attribute]` environment and a
-mutable op buffer.
+`IrGen.scala` walks the typed AST purely functionally: there is no mutable
+op buffer. An immutable `Env` maps names to SSA values, function symbols and
+constructor field types.
 
 Key invariants:
-- `generateExpr` always returns a `Value[Attribute]` (the result SSA value of the last emitted op).
-- Regions with a non-terminator result use `YieldOp`; function bodies use `ReturnOp`.
-- `LambdaOp` and `FuncDeclOp` both open child contexts so inner bindings don't escape.
+- `generateExpr(expr)(using Env)` returns a `Generated(ops, value)`: the ops to emit, in order, and the SSA value holding the result.
+- `generateDecl(decl)(using Env)` returns `(ops, newEnv)`; `generateProgram` folds over declarations threading the env.
+- Regions with a non-terminator result use `YieldOp` (see `yielding`); function bodies use `ReturnOp`.
+- Nested regions (lambdas, functions, match cases) pass an extended env explicitly via `(using env.bindAll(...))`, so inner bindings can't escape.
 - When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a generation case in `generateExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.
 
 ## Testing
