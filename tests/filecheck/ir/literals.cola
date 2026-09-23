@@ -7,7 +7,6 @@ val t = true
 val f = false
 val n = Nil
 
-// CHECK: Parsing succeeded.
 // CHECK: "chocola.constant"() <{value = "42"}> : () -> !chocola.int
 // CHECK: "chocola.constant"() <{value = "3.14"}> : () -> !chocola.double
 // CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.string

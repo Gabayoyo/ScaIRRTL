@@ -1,0 +1,22 @@
+// RUN: choco-opt -p convert-choco-to-mlir %s | filecheck %s
+// RUN: choco-opt -p convert-choco-to-func %s | filecheck %s --check-prefix=FUNCTIONS
+
+def double(x: Int): Int = x * 2
+val doubled = double(21)
+
+def fact(n: Int): Int = if n <= 1 then 1 else n * fact(n - 1)
+val factorial = fact(5)
+
+// CHECK: func.func @double(%{{.*}}: i32) -> i32 {
+// CHECK: "arith.muli"
+// CHECK: func.return
+// CHECK: "func.call"({{.*}}) <{callee = @double}> : (i32) -> i32
+// CHECK: func.func @fact(%{{.*}}: i32) -> i32 {
+// CHECK: "scf.if"
+// CHECK: "func.call"({{.*}}) <{callee = @fact}> : (i32) -> i32
+// CHECK: func.return
+// CHECK: "func.call"({{.*}}) <{callee = @fact}> : (i32) -> i32
+
+// FUNCTIONS: func.func @double
+// FUNCTIONS: "func.call"
+// FUNCTIONS-NOT: "chocola.func"

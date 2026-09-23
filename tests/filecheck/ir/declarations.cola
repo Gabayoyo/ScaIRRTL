@@ -17,24 +17,23 @@ enum Tree[a] {
   case Node(left: Tree, right: Tree)
 }
 
-// CHECK: Parsing succeeded.
 // CHECK: "chocola.type_alias"() <{sym = @MyInt, aliased = !chocola.int}> : () -> ()
 // CHECK: "chocola.type_alias"() <{sym = @IntList, aliased = !chocola.list<!chocola.int>}> : () -> ()
-// CHECK: "chocola.func"() <{sym = @double, typeParams = []}> ({
+// CHECK: "chocola.func"() <{sym = @double, typeParams = [], functionType = (!chocola.int) -> !chocola.int}> ({
 // CHECK: ^bb0(%0: !chocola.int):
 // CHECK:   %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
 // CHECK:   %2 = "chocola.mul"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
 // CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
-// CHECK: }) : () -> !chocola.int
-// CHECK: "chocola.func"() <{sym = @identity, typeParams = [@a]}> ({
+// CHECK: }) : () -> ()
+// CHECK: "chocola.func"() <{sym = @identity, typeParams = [@a], functionType = (!chocola.named<@a>) -> !chocola.named<@a>}> ({
 // CHECK: ^bb0(%0: !chocola.named<@a>):
 // CHECK:   "chocola.return"(%0) : (!chocola.named<@a>) -> ()
-// CHECK: }) : () -> !chocola.named<@a>
-// CHECK: "chocola.func"() <{sym = @add, typeParams = []}> ({
+// CHECK: }) : () -> ()
+// CHECK: "chocola.func"() <{sym = @add, typeParams = [], functionType = (!chocola.int, !chocola.int) -> !chocola.int}> ({
 // CHECK: ^bb0(%0: !chocola.int, %1: !chocola.int):
 // CHECK:   %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
 // CHECK:   "chocola.return"(%2) : (!chocola.int) -> ()
-// CHECK: }) : () -> !chocola.int
+// CHECK: }) : () -> ()
 // CHECK: "chocola.enum"() <{sym = @Color, typeParams = []}> ({
 // CHECK:   "chocola.enum_case"() <{sym = @Red, fields = []}> : () -> ()
 // CHECK:   "chocola.enum_case"() <{sym = @Green, fields = []}> : () -> ()

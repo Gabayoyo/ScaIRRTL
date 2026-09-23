@@ -276,18 +276,25 @@ private def indexToLineCol(source: String, index: Int): (Int, Int) =
   val col = index - before.lastIndexOf('\n')
   (line, col)
 
-def parseFile(file: String): Option[Program] =
-  val source = scala.io.Source.fromFile(file).mkString
+def parseSource(source: String): Either[String, Program] =
   fastparse.parse(source, program(using _)) match
-    case Parsed.Success(prog, _) => Some(prog)
+    case Parsed.Success(prog, _) => Right(prog)
     case f: Parsed.Failure       =>
       val (line, col) = indexToLineCol(source, f.index)
       val sourceLine = source.split('\n').lift(line - 1).getOrElse("")
       val caret = " " * (col - 1) + "^"
-      println(s"error: line $line, column $col:")
-      println(sourceLine)
-      println(caret)
       val expected = f.trace().msg.replaceAll(":\\d+:\\d+,.*", "")
         .stripPrefix("Expected ")
-      println(s"expected: $expected")
-      None
+      Left(
+        s"error: line $line, column $col:\n$sourceLine\n$caret\nexpected: $expected"
+      )
+
+def parseFile(file: String): Option[Program] =
+  val input = scala.io.Source.fromFile(file)
+  try
+    parseSource(input.mkString) match
+      case Right(program) => Some(program)
+      case Left(error)    =>
+        println(error)
+        None
+  finally input.close()

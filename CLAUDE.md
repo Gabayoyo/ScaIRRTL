@@ -13,8 +13,8 @@ The project uses a bundled `./mill` wrapper script (no global installation neede
 | Task | Command |
 |---|---|
 | Compile all modules | `./mill __.compile` |
-| Run the compiler on a file | `./mill main.run -- <file.cola>` |
-| Dump raw AST instead of IR | `./mill main.run -- --dump-ast <file.cola>` |
+| Run the compiler on a file | `./mill opt.run <file.cola>` |
+| Dump raw AST instead of IR | `./mill opt.run --dump-ast <file.cola>` |
 | Run lit + FileCheck tests | `./mill filechecks.run` |
 | Format all sources | `./mill format` |
 | Check formatting (CI) | `./mill checkFormat` |

@@ -1,0 +1,37 @@
+// RUN: choco-opt -p convert-choco-to-mlir %s | filecheck %s
+// RUN: choco-opt -p convert-choco-to-arith %s | filecheck %s --check-prefix=ARITH
+// RUN: choco-opt -p convert-choco-to-scf %s | filecheck %s --check-prefix=CONTROL
+// RUN: choco-opt -p convert-choco-to-mlir,reconcile-unrealized-casts %s | filecheck %s --check-prefix=COMPOSE
+// RUN: choco-opt -p convert-choco-to-mlir %s > %t.convert-choco-to-mlir
+// RUN: choco-opt -p convert-choco-to-func,convert-choco-to-scf,convert-choco-to-arith,reconcile-unrealized-casts %s > %t.explicit
+// RUN: diff %t.convert-choco-to-mlir %t.explicit
+
+val integer = -((8 / 2) + 3 * 4 - 1)
+val floating = -(1.5 + 2.0) / 3.0
+val compared = integer >= 0
+val logic = !false && (true || false)
+val selected = if compared then integer else 0
+
+// CHECK: builtin.module {
+// CHECK: "arith.divsi"
+// CHECK: "arith.muli"
+// CHECK: "arith.addi"
+// CHECK: "arith.subi"
+// CHECK: "arith.negf"
+// CHECK: "arith.divf"
+// CHECK: "arith.cmpi"
+// CHECK: "arith.xori"
+// CHECK: "arith.ori"
+// CHECK: "arith.andi"
+// CHECK: "scf.if"
+// CHECK: scf.yield
+// CHECK-NOT: "chocola.if"
+
+// ARITH: "arith.addi"
+// ARITH: "chocola.if"
+
+// CONTROL: "chocola.add"
+// CONTROL: "scf.if"
+
+// COMPOSE: "arith.addi"
+// COMPOSE: "scf.if"

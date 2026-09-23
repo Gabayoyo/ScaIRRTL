@@ -21,7 +21,10 @@ object `package` extends ChocoLaModule:
             )
         }
         override def mvnDeps = Seq(
-            mvn"io.github.edin-dal::scair-core::0.0.0-1-f23048-SNAPSHOT"
+            mvn"io.github.edin-dal::scair-core::0.0.0-1-cda364-SNAPSHOT",
+            mvn"io.github.edin-dal::scair-dialects-arith::0.0.0-1-cda364-SNAPSHOT",
+            mvn"io.github.edin-dal::scair-dialects-func::0.0.0-1-cda364-SNAPSHOT",
+            mvn"io.github.edin-dal::scair-dialects-scf::0.0.0-1-cda364-SNAPSHOT"
         )
 
     
@@ -32,16 +35,22 @@ object `package` extends ChocoLaModule:
 
         override def moduleDeps = Seq(dialects)
 
-    object main extends ChocoLaModule:
+    object lowering extends ChocoLaModule:
         override def mvnDeps = Seq(
-            mvn"com.github.alexarchambault::case-app:2.1.0"
+            mvn"io.github.edin-dal::scair-passes::0.0.0-1-cda364-SNAPSHOT"
         )
-        override def moduleDeps = Seq(parser)
+        override def moduleDeps = Seq(dialects)
+
+    object opt extends ChocoLaModule:
+        override def mvnDeps = Seq(
+            mvn"com.github.scopt::scopt:4.1.0"
+        )
+        override def moduleDeps = Seq(parser, lowering)
 
 
     object filechecks extends Module:
         def run() = Task.Command(exclusive = true):
-            val launcher = main.launcher().path
+            val launcher = opt.launcher().path
             os.proc("lit", "tests/filecheck", "-v")
                 .call(
                     propagateEnv = true,

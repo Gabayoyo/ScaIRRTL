@@ -9,10 +9,13 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 
 ```sh
 # Compile everything
-./mill main.compile
+./mill opt.compile
 
-# Parse a source file
-./mill main.run -- path/to/file.cola
+# Parse ChocoLa source and emit IR
+./mill opt.run path/to/file.cola
+
+# Run the currently supported ChocoLa-to-MLIR conversion
+./mill opt.run -p convert-choco-to-mlir path/to/file.cola
 
 # Run lit + FileCheck tests
 ./mill filechecks.run
@@ -25,6 +28,32 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 ```
 
 `pip install "lit<23" filecheck` is required for `filechecks.run`.
+
+`choco-opt` accepts the same input, diagnostics, verification, generic-printing,
+and pass-selection flags as `scair-opt`. Files ending in `.cola` use the
+ChocoLa frontend; all other files and standard input are parsed as MLIR. The
+individual ChocoLa passes are `convert-choco-to-func`,
+`convert-choco-to-scf`, and `convert-choco-to-arith`;
+`convert-choco-to-mlir` runs all three followed by
+`reconcile-unrealized-casts`. Use `--dump-ast` to inspect a `.cola` file before
+IR generation.
+
+## Conversion direction
+
+ScaIR is used to build and print the IR; upstream MLIR is the eventual
+conversion backend. The `-p convert-choco-to-mlir` pipeline currently converts
+primitive types, scalar arithmetic, direct non-generic functions, calls,
+returns, and if-expressions to MLIR-compatible Builtin, Func, SCF, and Arith operations.
+Unsupported language constructs intentionally remain as `chocola.*` IR.
+Each conversion pass is a `WalkerPass` made from small, operation-local rewrite
+patterns. `builtin.unrealized_conversion_cast` bridges source and target types
+while the patterns run; ScaIR's reconciliation pass removes redundant cast
+chains afterward. Casts remain only at the boundary of residual ChocoLa IR.
+
+Once a program contains no residual `chocola.*` operations, its output is
+intended to be passed to upstream tools such as `mlir-opt` for downstream
+conversion and code generation. When `mlir-opt` is available, the FileCheck
+suite enables an additional handoff test for this boundary.
 
 ## Language grammar
 
@@ -123,7 +152,9 @@ depth(Node(Leaf(1), Leaf(2)))
 
 ```
 parser/             -- chocola.parser: AST + fastparse 3 parser
-main/               -- chocola.main: CLI entry point (CaseApp)
+dialects/           -- chocola.* types and operations
+lowering/           -- ChocoLa-to-Builtin/Func/SCF/Arith passes
+opt/                -- chocola.main: ScaIR-compatible optimizer CLI
 tests/filecheck/    -- lit + FileCheck regression tests
 ```
 

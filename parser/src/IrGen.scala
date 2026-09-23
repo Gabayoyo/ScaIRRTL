@@ -8,7 +8,13 @@ import chocola.parser.Literal
 import chocola.parser.MatchCase
 import chocola.parser.Program
 import chocola.dialects.*
-import scair.dialects.builtin.{ArrayAttribute, StringData, SymbolRefAttr}
+import scair.dialects.builtin.{
+  ArrayAttribute,
+  FunctionType,
+  ModuleOp,
+  StringData,
+  SymbolRefAttr,
+}
 import scair.ir.*
 
 import chocola.parser.Type as AstType
@@ -38,29 +44,58 @@ private def optionalAstTypeToAttr(tpe: Option[AstType]): ChocolaType =
 private def symbolRef(name: String): SymbolRefAttr =
   SymbolRefAttr(StringData(name))
 
+private def asChocola(value: Value[Attribute]): Value[ChocolaType] =
+  value.asInstanceOf[Value[ChocolaType]]
+
+private def asOperand[T <: ChocolaType](
+    value: Value[ChocolaType]
+): Operand[T] = value.asInstanceOf[Operand[T]]
+
+private def asResult[T <: ChocolaType](
+    result: Result[ChocolaType]
+): Result[T] = result.asInstanceOf[Result[T]]
+
 // ---------------------------------------------------------------------------
 // IR generation context
 // ---------------------------------------------------------------------------
 
-private class IrGenContext(startEnv: Map[String, Value[Attribute]] = Map.empty):
-  var env: Map[String, Value[Attribute]] = startEnv
+private class IrGenContext(
+    startEnv: Map[String, Value[ChocolaType]] = Map.empty,
+    startFunctions: Map[String, SymbolRefAttr] = Map.empty,
+    startConstructors: Map[String, Seq[ChocolaType]] = Map.empty,
+):
+  var env: Map[String, Value[ChocolaType]] = startEnv
+  var functions: Map[String, SymbolRefAttr] = startFunctions
+  var constructors: Map[String, Seq[ChocolaType]] = startConstructors
   val ops: mutable.ListBuffer[Operation] = mutable.ListBuffer.empty
 
   def emit(op: Operation): Unit = ops += op
-  def bind(name: String, v: Value[Attribute]): Unit = env = env + (name -> v)
-  def lookup(name: String): Value[Attribute] = env(name)
+  def bind(name: String, v: Value[ChocolaType]): Unit = env = env + (name -> v)
 
-  def childContext(): IrGenContext = IrGenContext(env)
+  def bindFunction(name: String, sym: SymbolRefAttr): Unit =
+    functions = functions + (name -> sym)
+
+  def bindConstructor(name: String, fields: Seq[ChocolaType]): Unit =
+    constructors = constructors + (name -> fields)
+
+  def lookupLocal(name: String): Option[Value[ChocolaType]] = env.get(name)
+  def lookupFunction(name: String): Option[SymbolRefAttr] = functions.get(name)
+
+  def lookupConstructor(name: String): Option[Seq[ChocolaType]] =
+    constructors.get(name)
+
+  def childContext(): IrGenContext =
+    IrGenContext(env, functions, constructors)
 
 // ---------------------------------------------------------------------------
 // Top-level entry point
 // ---------------------------------------------------------------------------
 
-def generateProgram(program: Program): Seq[Operation] =
+def generateProgram(program: Program): ModuleOp =
   val ctx = IrGenContext()
   program.decls.foreach(generateDecl(_, ctx))
   program.expr.foreach(generateExpr(_, ctx))
-  ctx.ops.toSeq
+  ModuleOp(Region(Block(ctx.ops.toSeq)))
 
 // ---------------------------------------------------------------------------
 // Declaration generation
@@ -73,14 +108,22 @@ private def generateDecl(decl: Decl, ctx: IrGenContext): Unit =
       ctx.bind(name, v)
 
     case DefDecl(name, typeParams, params, retTy, body) =>
-      val funcResult = Result(convertAstType(retTy))
-      val paramTypes: Seq[Attribute] = params.map((_, t) => convertAstType(t))
+      val sym = symbolRef(name)
+      // Make the symbol visible while constructing its own body so recursive
+      // calls are represented symbolically rather than as an SSA cycle.
+      ctx.bindFunction(name, sym)
+      val paramTypes: Seq[ChocolaType] = params.map((_, t) => convertAstType(t))
+      val resultType = convertAstType(retTy)
+      val functionType = FunctionType(
+        ArrayAttribute(paramTypes*),
+        ArrayAttribute(resultType),
+      )
       val bodyBlock = Block(
         paramTypes,
         (args: Iterable[Value[Attribute]]) =>
           val childCtx = ctx.childContext()
           params.map(_._1).zip(args).foreach { case (n, v) =>
-            childCtx.bind(n, v)
+            childCtx.bind(n, asChocola(v))
           }
           val retVal = generateExpr(body, childCtx)
           childCtx.emit(ReturnOp(retVal))
@@ -89,13 +132,12 @@ private def generateDecl(decl: Decl, ctx: IrGenContext): Unit =
       ctx
         .emit(
           FuncDeclOp(
-            symbolRef(name),
+            sym,
             ArrayAttribute(typeParams.map(symbolRef)*),
-            funcResult,
+            functionType,
             Region(bodyBlock),
           )
         )
-      ctx.bind(name, funcResult)
 
     case TypeDecl(name, tpe) =>
       ctx.emit(TypeAliasDeclOp(symbolRef(name), convertAstType(tpe)))
@@ -103,6 +145,10 @@ private def generateDecl(decl: Decl, ctx: IrGenContext): Unit =
     case EnumDecl(name, typeParams, cases) =>
       val caseOps: Seq[Operation] = cases.map {
         case EnumCase(caseName, fields) =>
+          val bindingTypes =
+            if typeParams.isEmpty then fields.map((_, t) => convertAstType(t))
+            else fields.map(_ => unknown)
+          ctx.bindConstructor(caseName, bindingTypes)
           val fieldAttrs = fields.map { case (fieldName, fieldType) =>
             EnumFieldAttr(symbolRef(fieldName), convertAstType(fieldType))
           }
@@ -122,7 +168,7 @@ private def generateDecl(decl: Decl, ctx: IrGenContext): Unit =
 // Expression generation
 // ---------------------------------------------------------------------------
 
-private def generateExpr(expr: Expr, ctx: IrGenContext): Value[Attribute] =
+private def generateExpr(expr: Expr, ctx: IrGenContext): Value[ChocolaType] =
   expr match
 
     case Expr.Lit(lit, _) =>
@@ -132,27 +178,93 @@ private def generateExpr(expr: Expr, ctx: IrGenContext): Value[Attribute] =
       result
 
     case Expr.Var(name, _) =>
-      ctx.lookup(name)
+      ctx.lookupLocal(name) match
+        case Some(value) => value
+        case None        =>
+          val result = Result(optionalAstTypeToAttr(expr.tpe))
+          ctx
+            .emit(
+              FunctionRefOp(
+                ctx.lookupFunction(name).get,
+                asResult[FunType](result),
+              )
+            )
+          result
 
     case Expr.BinOp(op, l, r, _) =>
       val lv = generateExpr(l, ctx)
       val rv = generateExpr(r, ctx)
       val result = Result(optionalAstTypeToAttr(expr.tpe))
       val binOp = op match
-        case "+"  => AddOp(lv, rv, result)
-        case "-"  => SubOp(lv, rv, result)
-        case "*"  => MulOp(lv, rv, result)
-        case "/"  => DivOp(lv, rv, result)
-        case "==" => EqOp(lv, rv, result)
-        case "!=" => NeqOp(lv, rv, result)
-        case "<"  => LtOp(lv, rv, result)
-        case ">"  => GtOp(lv, rv, result)
-        case "<=" => LeqOp(lv, rv, result)
-        case ">=" => GeqOp(lv, rv, result)
-        case "||" => OrOp(lv, rv, result)
-        case "&&" => AndOp(lv, rv, result)
-        case "::" => ConsOp(lv, rv, result)
-        case _    =>
+        case "+" =>
+          AddOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[NumericType](result),
+          )
+        case "-" =>
+          SubOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[NumericType](result),
+          )
+        case "*" =>
+          MulOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[NumericType](result),
+          )
+        case "/" =>
+          DivOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[NumericType](result),
+          )
+        case "==" => EqOp(lv, rv, asResult[BoolType](result))
+        case "!=" => NeqOp(lv, rv, asResult[BoolType](result))
+        case "<"  =>
+          LtOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[BoolType](result),
+          )
+        case ">" =>
+          GtOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[BoolType](result),
+          )
+        case "<=" =>
+          LeqOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[BoolType](result),
+          )
+        case ">=" =>
+          GeqOp(
+            asOperand[NumericType](lv),
+            asOperand[NumericType](rv),
+            asResult[BoolType](result),
+          )
+        case "||" =>
+          OrOp(
+            asOperand[BoolType](lv),
+            asOperand[BoolType](rv),
+            asResult[BoolType](result),
+          )
+        case "&&" =>
+          AndOp(
+            asOperand[BoolType](lv),
+            asOperand[BoolType](rv),
+            asResult[BoolType](result),
+          )
+        case "::" =>
+          ConsOp(
+            lv,
+            asOperand[chocola.dialects.ListType](rv),
+            asResult[chocola.dialects.ListType](result),
+          )
+        case _ =>
           throw IllegalArgumentException(s"Unknown binary operator: $op")
       ctx.emit(binOp)
       result
@@ -161,29 +273,52 @@ private def generateExpr(expr: Expr, ctx: IrGenContext): Value[Attribute] =
       val v = generateExpr(e, ctx)
       val result = Result(optionalAstTypeToAttr(expr.tpe))
       val unOp = op match
-        case "-" => NegOp(v, result)
-        case "!" => NotOp(v, result)
+        case "-" =>
+          NegOp(
+            asOperand[NumericType](v),
+            asResult[NumericType](result),
+          )
+        case "!" =>
+          NotOp(
+            asOperand[BoolType](v),
+            asResult[BoolType](result),
+          )
         case _ => throw IllegalArgumentException(s"Unknown unary operator: $op")
       ctx.emit(unOp)
       result
 
     case Expr.Apply(f, args, _) =>
-      val calleeVal = generateExpr(f, ctx)
-      val argVals = args.map(generateExpr(_, ctx))
-      val result = Result(optionalAstTypeToAttr(expr.tpe))
-      ctx.emit(CallOp(calleeVal, argVals, result))
-      result
+      f match
+        case Expr.Var(name, _)
+            if ctx.lookupLocal(name).isEmpty &&
+              ctx.lookupFunction(name).isDefined =>
+          val argVals = args.map(generateExpr(_, ctx))
+          val result = Result(optionalAstTypeToAttr(expr.tpe))
+          ctx.emit(DirectCallOp(ctx.lookupFunction(name).get, argVals, result))
+          result
+        case _ =>
+          val calleeVal = generateExpr(f, ctx)
+          val argVals = args.map(generateExpr(_, ctx))
+          val result = Result(optionalAstTypeToAttr(expr.tpe))
+          ctx
+            .emit(
+              CallOp(asOperand[FunType](calleeVal), argVals, result)
+            )
+          result
 
     case Expr.Construct(name, args, _) =>
       val argVals = args.map(generateExpr(_, ctx))
       val result = Result(optionalAstTypeToAttr(expr.tpe))
-      ctx.emit(ConstructOp(symbolRef(name), argVals, result))
+      ctx
+        .emit(
+          ConstructOp(symbolRef(name), argVals, asResult[NamedType](result))
+        )
       result
 
     case Expr.Tuple(elems, _) =>
       val elemVals = elems.map(generateExpr(_, ctx))
       val result = Result(optionalAstTypeToAttr(expr.tpe))
-      ctx.emit(TupleOp(elemVals, result))
+      ctx.emit(TupleOp(elemVals, asResult[TupleType](result)))
       result
 
     case Expr.If(cond, thenBranch, elseBranch, _) =>
@@ -191,24 +326,32 @@ private def generateExpr(expr: Expr, ctx: IrGenContext): Value[Attribute] =
       val result = Result(optionalAstTypeToAttr(expr.tpe))
       val thenBlock = buildYieldingBlock(thenBranch, ctx)
       val elseBlock = buildYieldingBlock(elseBranch, ctx)
-      ctx.emit(IfOp(condVal, result, Region(thenBlock), Region(elseBlock)))
+      ctx
+        .emit(
+          IfOp(
+            asOperand[BoolType](condVal),
+            result,
+            Region(thenBlock),
+            Region(elseBlock),
+          )
+        )
       result
 
     case Expr.Lambda(params, body, _) =>
       val result = Result(optionalAstTypeToAttr(expr.tpe))
-      val paramTypes: Seq[Attribute] = params.map((_, t) => convertAstType(t))
+      val paramTypes: Seq[ChocolaType] = params.map((_, t) => convertAstType(t))
       val bodyBlock = Block(
         paramTypes,
         (args: Iterable[Value[Attribute]]) =>
           val childCtx = ctx.childContext()
           params.map(_._1).zip(args).foreach { case (n, v) =>
-            childCtx.bind(n, v)
+            childCtx.bind(n, asChocola(v))
           }
           val bodyVal = generateExpr(body, childCtx)
           childCtx.emit(YieldOp(bodyVal))
           childCtx.ops.toSeq,
       )
-      ctx.emit(LambdaOp(result, Region(bodyBlock)))
+      ctx.emit(LambdaOp(asResult[FunType](result), Region(bodyBlock)))
       result
 
     case Expr.Match(scrutinee, cases, _) =>
@@ -216,13 +359,14 @@ private def generateExpr(expr: Expr, ctx: IrGenContext): Value[Attribute] =
       val result = Result(optionalAstTypeToAttr(expr.tpe))
       val caseOps: Seq[Operation] = cases.map {
         case MatchCase(ctor, bindings, body) =>
-          val bindingTypes: Seq[Attribute] = bindings.map(_ => unknown)
+          val bindingTypes = ctx.lookupConstructor(ctor)
+            .getOrElse(bindings.map(_ => unknown))
           val bodyBlock = Block(
             bindingTypes,
             (bindingArgs: Iterable[Value[Attribute]]) =>
               val childCtx = ctx.childContext()
               bindings.zip(bindingArgs).foreach { case (n, v) =>
-                childCtx.bind(n, v)
+                childCtx.bind(n, asChocola(v))
               }
               val bodyVal = generateExpr(body, childCtx)
               childCtx.emit(YieldOp(bodyVal))

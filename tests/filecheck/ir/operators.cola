@@ -10,15 +10,14 @@ val orExpr  = true || false
 val notExpr = !true
 val lst = 1 :: 2 :: Nil
 
-// CHECK: Parsing succeeded.
-// CHECK: "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
-// CHECK: "chocola.mul"(%2, %3) : (!chocola.int, !chocola.int) -> !chocola.int
-// CHECK: "chocola.mul"(%4, %5) : (!chocola.int, !chocola.int) -> !chocola.int
-// CHECK: "chocola.add"(%6, %7) : (!chocola.int, !chocola.int) -> !chocola.int
-// CHECK: "chocola.lt"(%8, %9) : (!chocola.int, !chocola.int) -> !chocola.bool
-// CHECK: "chocola.eq"(%10, %11) : (!chocola.int, !chocola.int) -> !chocola.bool
-// CHECK: "chocola.and"(%12, %13) : (!chocola.bool, !chocola.bool) -> !chocola.bool
-// CHECK: "chocola.or"(%14, %15) : (!chocola.bool, !chocola.bool) -> !chocola.bool
-// CHECK: "chocola.not"(%16) : (!chocola.bool) -> !chocola.bool
-// CHECK: "chocola.cons"(%17, %18) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int>
-// CHECK: "chocola.cons"(%19, %20) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int>
+// CHECK: "chocola.add"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK: "chocola.mul"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK: "chocola.mul"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK: "chocola.add"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK: "chocola.lt"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.bool
+// CHECK: "chocola.eq"({{.*}}) : (!chocola.int, !chocola.int) -> !chocola.bool
+// CHECK: "chocola.and"({{.*}}) : (!chocola.bool, !chocola.bool) -> !chocola.bool
+// CHECK: "chocola.or"({{.*}}) : (!chocola.bool, !chocola.bool) -> !chocola.bool
+// CHECK: "chocola.not"({{.*}}) : (!chocola.bool) -> !chocola.bool
+// CHECK: "chocola.cons"({{.*}}) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int>
+// CHECK: "chocola.cons"({{.*}}) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int>
