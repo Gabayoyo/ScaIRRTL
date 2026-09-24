@@ -102,14 +102,65 @@ private def resultOf(expr: Expr): Result[ChocolaType] =
 // ---------------------------------------------------------------------------
 
 def generateProgram(program: Program): ModuleOp =
+  val sourceMains = program.decls.collect {
+    case decl @ DefDecl("main", _, _, _, _) => decl
+  }
+
+  if sourceMains.size > 1 then
+    throw IllegalArgumentException(
+      "Program may define at most one source main function"
+    )
+
+  sourceMains.headOption.foreach {
+    case DefDecl(_, typeParams, params, returnType, _)
+        if typeParams.nonEmpty || params.nonEmpty ||
+          returnType != AstType.TInt =>
+      throw IllegalArgumentException(
+        "Source main function must have signature def main(): Int"
+      )
+    case _ =>
+  }
+
+  if sourceMains.nonEmpty && program.expr.nonEmpty then
+    throw IllegalArgumentException(
+      "Program cannot contain both a source main function and a final expression"
+    )
   val (declOps, env) =
     program.decls
       .foldLeft((Seq.empty[Operation], Env())) { case ((ops, env), decl) =>
         val (newOps, newEnv) = generateDecl(decl)(using env)
         (ops ++ newOps, newEnv)
       }
-  val exprOps = program.expr.toSeq.flatMap(generateExpr(_)(using env).ops)
-  ModuleOp(Region(Block(declOps ++ exprOps)))
+  val mainOps =
+    if sourceMains.nonEmpty then Seq.empty
+    else Seq(generateMain(program.expr)(using env))
+  ModuleOp(Region(Block(declOps ++ mainOps)))
+
+/** Generate the synthetic entry point for a program without a source main. */
+private def generateMain(expr: Option[Expr])(using Env): FuncDeclOp =
+  val bodyOps = expr match
+    case Some(expr) =>
+      val g = generateExpr(expr)
+      if expr.tpe.contains(AstType.TInt) then g.ops :+ ReturnOp(g.value)
+      else g.ops ++ zeroReturn
+    case None => zeroReturn
+
+  FuncDeclOp(
+    symbolRef("main"),
+    ArrayAttribute[SymbolRefAttr](),
+    FunctionType(
+      ArrayAttribute[Attribute](),
+      ArrayAttribute[Attribute](IntType()),
+    ),
+    Region(Block(bodyOps)),
+  )
+
+private def zeroReturn: Seq[Operation] =
+  val zero = Result[ChocolaType](IntType())
+  Seq(
+    ConstantOp(StringData("0"), zero),
+    ReturnOp(zero),
+  )
 
 // ---------------------------------------------------------------------------
 // Declaration generation

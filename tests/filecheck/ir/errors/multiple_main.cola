@@ -1,0 +1,6 @@
+// RUN: choco-opt %s 2>&1 | filecheck %s
+
+def main(): Int = 0
+def main(): Int = 1
+
+// CHECK: Program may define at most one source main function

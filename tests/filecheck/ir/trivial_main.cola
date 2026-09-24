@@ -1,0 +1,11 @@
+// RUN: choco-opt %s | filecheck %s
+
+type MyInt = Int
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    "chocola.type_alias"() <{sym = @MyInt, aliased = !chocola.int}> : () -> ()
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %0 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%0) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

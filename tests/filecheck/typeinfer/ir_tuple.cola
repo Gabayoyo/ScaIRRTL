@@ -3,4 +3,12 @@
 
 val pair = (1, true)
 
-// CHECK: "chocola.tuple"({{.*}}) : (!chocola.int, !chocola.bool) -> !chocola.tuple<!chocola.int, !chocola.bool>
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// CHECK-NEXT:    %1 = "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
+// CHECK-NEXT:    %2 = "chocola.tuple"(%0, %1) : (!chocola.int, !chocola.bool) -> !chocola.tuple<!chocola.int, !chocola.bool>
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %3 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%3) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

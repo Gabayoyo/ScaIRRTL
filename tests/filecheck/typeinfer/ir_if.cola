@@ -3,10 +3,17 @@
 
 val x = if true then 42 else 0
 
-// CHECK: "chocola.if"({{.*}}) ({
-// CHECK:   {{.*}} = "chocola.constant"() <{value = "42"}> : () -> !chocola.int
-// CHECK:   "chocola.yield"({{.*}}) : (!chocola.int) -> ()
-// CHECK: }, {
-// CHECK:   {{.*}} = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
-// CHECK:   "chocola.yield"({{.*}}) : (!chocola.int) -> ()
-// CHECK: }) : (!chocola.bool) -> !chocola.int
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
+// CHECK-NEXT:    %1 = "chocola.if"(%0) ({
+// CHECK-NEXT:      %2 = "chocola.constant"() <{value = "42"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.yield"(%2) : (!chocola.int) -> ()
+// CHECK-NEXT:    }, {
+// CHECK-NEXT:      %2 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.yield"(%2) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : (!chocola.bool) -> !chocola.int
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %2 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%2) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

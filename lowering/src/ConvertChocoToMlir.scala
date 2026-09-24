@@ -7,24 +7,19 @@ import scair.transformations.*
 import scair.utils.Err
 import scair.verify.Verifier
 
-final class ConvertChocoToMlir(ctx: MLContext) extends ModulePass(ctx):
+final class ConvertChocoToMlir(ctx: MLContext) extends ConversionPass(ctx):
   override val name = "convert-choco-to-mlir"
 
-  private val passes: Seq[ModulePass] = Seq(
+  private val partials: Seq[ConversionPass] = Seq(
     ConvertChocoToFunc(ctx),
     ConvertChocoToScf(ctx),
     ConvertChocoToArith(ctx),
-    ReconcileUnrealizedCasts(ctx),
   )
 
-  override def transform(module: Operation): Operation =
-    passes.foldLeft(module) { (current, pass) =>
-      val transformed = pass.transform(current)
-      Verifier.verify(transformed) match
-        case error: Err =>
-          throw IllegalStateException(s"${pass.name}: ${error.msg}")
-        case _ => transformed
-    }
+  override def patterns: Seq[ConversionPattern] =
+    partials.flatMap(_.patterns)
+
+  override def typeConverter: TypeConverter = chocoTypeConverter
 
 val allPasses: Seq[MLContext => ModulePass] = Seq(
   ConvertChocoToFunc(_),

@@ -1,0 +1,7 @@
+// RUN: choco-opt %s 2>&1 | filecheck %s
+
+def main(): Int = 0
+
+1
+
+// CHECK: Program cannot contain both a source main function and a final expression

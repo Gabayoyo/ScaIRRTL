@@ -7,16 +7,73 @@ val doubled = double(21)
 def fact(n: Int): Int = if n <= 1 then 1 else n * fact(n - 1)
 val factorial = fact(5)
 
-// CHECK: func.func @double(%{{.*}}: i32) -> i32 {
-// CHECK: "arith.muli"
-// CHECK: func.return
-// CHECK: "func.call"({{.*}}) <{callee = @double}> : (i32) -> i32
-// CHECK: func.func @fact(%{{.*}}: i32) -> i32 {
-// CHECK: "scf.if"
-// CHECK: "func.call"({{.*}}) <{callee = @fact}> : (i32) -> i32
-// CHECK: func.return
-// CHECK: "func.call"({{.*}}) <{callee = @fact}> : (i32) -> i32
+// CHECK:       builtin.module {
+// CHECK-NEXT:    func.func @double(%0: i32) -> i32 {
+// CHECK-NEXT:      %1 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+// CHECK-NEXT:      %2 = "arith.muli"(%0, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-NEXT:      func.return %2 : i32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %0 = "arith.constant"() <{value = 21 : i32}> : () -> i32
+// CHECK-NEXT:    %1 = "func.call"(%0) <{callee = @double}> : (i32) -> i32
+// CHECK-NEXT:    func.func @fact(%2: i32) -> i32 {
+// CHECK-NEXT:      %3 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+// CHECK-NEXT:      %4 = "arith.cmpi"(%2, %3) <{predicate = 3 : i64}> : (i32, i32) -> i1
+// CHECK-NEXT:      %5 = "scf.if"(%4) ({
+// CHECK-NEXT:        %6 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+// CHECK-NEXT:        scf.yield %6 : i32
+// CHECK-NEXT:      }, {
+// CHECK-NEXT:        %6 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+// CHECK-NEXT:        %7 = "arith.subi"(%2, %6) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-NEXT:        %8 = "func.call"(%7) <{callee = @fact}> : (i32) -> i32
+// CHECK-NEXT:        %9 = "arith.muli"(%2, %8) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-NEXT:        scf.yield %9 : i32
+// CHECK-NEXT:      }) : (i1) -> i32
+// CHECK-NEXT:      func.return %5 : i32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %2 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+// CHECK-NEXT:    %3 = "func.call"(%2) <{callee = @fact}> : (i32) -> i32
+// CHECK-NEXT:    func.func @main() -> i32 {
+// CHECK-NEXT:      %4 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+// CHECK-NEXT:      func.return %4 : i32
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
 
-// FUNCTIONS: func.func @double
-// FUNCTIONS: "func.call"
-// FUNCTIONS-NOT: "chocola.func"
+// FUNCTIONS:       builtin.module {
+// FUNCTIONS-NEXT:    func.func @double(%0: i32) -> i32 {
+// FUNCTIONS-NEXT:      %1 = "builtin.unrealized_conversion_cast"(%0) : (i32) -> !chocola.int
+// FUNCTIONS-NEXT:      %2 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:      %3 = "chocola.mul"(%1, %2) : (!chocola.int, !chocola.int) -> !chocola.int
+// FUNCTIONS-NEXT:      %4 = "builtin.unrealized_conversion_cast"(%3) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:      func.return %4 : i32
+// FUNCTIONS-NEXT:    }
+// FUNCTIONS-NEXT:    %0 = "chocola.constant"() <{value = "21"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:    %1 = "builtin.unrealized_conversion_cast"(%0) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:    %2 = "func.call"(%1) <{callee = @double}> : (i32) -> i32
+// FUNCTIONS-NEXT:    func.func @fact(%3: i32) -> i32 {
+// FUNCTIONS-NEXT:      %4 = "builtin.unrealized_conversion_cast"(%3) : (i32) -> !chocola.int
+// FUNCTIONS-NEXT:      %5 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:      %6 = "chocola.leq"(%4, %5) : (!chocola.int, !chocola.int) -> !chocola.bool
+// FUNCTIONS-NEXT:      %7 = "chocola.if"(%6) ({
+// FUNCTIONS-NEXT:        %8 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:        "chocola.yield"(%8) : (!chocola.int) -> ()
+// FUNCTIONS-NEXT:      }, {
+// FUNCTIONS-NEXT:        %8 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:        %9 = "chocola.sub"(%4, %8) : (!chocola.int, !chocola.int) -> !chocola.int
+// FUNCTIONS-NEXT:        %10 = "builtin.unrealized_conversion_cast"(%9) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:        %11 = "func.call"(%10) <{callee = @fact}> : (i32) -> i32
+// FUNCTIONS-NEXT:        %12 = "builtin.unrealized_conversion_cast"(%11) : (i32) -> !chocola.int
+// FUNCTIONS-NEXT:        %13 = "chocola.mul"(%4, %12) : (!chocola.int, !chocola.int) -> !chocola.int
+// FUNCTIONS-NEXT:        "chocola.yield"(%13) : (!chocola.int) -> ()
+// FUNCTIONS-NEXT:      }) : (!chocola.bool) -> !chocola.int
+// FUNCTIONS-NEXT:      %8 = "builtin.unrealized_conversion_cast"(%7) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:      func.return %8 : i32
+// FUNCTIONS-NEXT:    }
+// FUNCTIONS-NEXT:    %3 = "chocola.constant"() <{value = "5"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:    %4 = "builtin.unrealized_conversion_cast"(%3) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:    %5 = "func.call"(%4) <{callee = @fact}> : (i32) -> i32
+// FUNCTIONS-NEXT:    func.func @main() -> i32 {
+// FUNCTIONS-NEXT:      %6 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// FUNCTIONS-NEXT:      %7 = "builtin.unrealized_conversion_cast"(%6) : (!chocola.int) -> i32
+// FUNCTIONS-NEXT:      func.return %7 : i32
+// FUNCTIONS-NEXT:    }
+// FUNCTIONS-NEXT:  }

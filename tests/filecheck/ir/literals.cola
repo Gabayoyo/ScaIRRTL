@@ -7,9 +7,15 @@ val t = true
 val f = false
 val n = Nil
 
-// CHECK: "chocola.constant"() <{value = "42"}> : () -> !chocola.int
-// CHECK: "chocola.constant"() <{value = "3.14"}> : () -> !chocola.double
-// CHECK: "chocola.constant"() <{value = "hello"}> : () -> !chocola.string
-// CHECK: "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
-// CHECK: "chocola.constant"() <{value = "false"}> : () -> !chocola.bool
-// CHECK: "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<!chocola.unknown>
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "42"}> : () -> !chocola.int
+// CHECK-NEXT:    %1 = "chocola.constant"() <{value = "3.14"}> : () -> !chocola.double
+// CHECK-NEXT:    %2 = "chocola.constant"() <{value = "hello"}> : () -> !chocola.string
+// CHECK-NEXT:    %3 = "chocola.constant"() <{value = "true"}> : () -> !chocola.bool
+// CHECK-NEXT:    %4 = "chocola.constant"() <{value = "false"}> : () -> !chocola.bool
+// CHECK-NEXT:    %5 = "chocola.constant"() <{value = "Nil"}> : () -> !chocola.list<!chocola.unknown>
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %6 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%6) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

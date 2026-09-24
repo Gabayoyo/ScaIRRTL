@@ -1,0 +1,22 @@
+// RUN: choco-opt %s | filecheck %s
+
+def inc(x: Int): Int = x + 1
+val start = 40
+
+inc(start) + 2
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    "chocola.func"() <{sym = @inc, typeParams = [], functionType = (!chocola.int) -> !chocola.int}> ({
+// CHECK-NEXT:    ^bb0(%0: !chocola.int):
+// CHECK-NEXT:      %1 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// CHECK-NEXT:      %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%2) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "40"}> : () -> !chocola.int
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %1 = "chocola.direct_call"(%0) <{callee = @inc}> : (!chocola.int) -> !chocola.int
+// CHECK-NEXT:      %2 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// CHECK-NEXT:      %3 = "chocola.add"(%1, %2) : (!chocola.int, !chocola.int) -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%3) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

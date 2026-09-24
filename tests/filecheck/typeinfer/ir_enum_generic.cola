@@ -12,11 +12,20 @@ val unwrapped = MkBox(7) match {
   case MkBox(v) => v
 }
 
-// CHECK: "chocola.enum"() <{sym = @Box, typeParams = [@a]}> ({
-// CHECK:   "chocola.enum_case"() <{sym = @MkBox, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
-// CHECK: }) : () -> ()
-// CHECK: "chocola.construct"({{.*}}) <{ctor = @MkBox}> : (!chocola.int) -> !chocola.named<@Box>
-// CHECK: "chocola.match"({{.*}}) ({
-// CHECK:   "chocola.case"() <{ctor = @MkBox}> ({
-// CHECK:   ^bb0(%{{[0-9]+}}: !chocola.unknown):
-// CHECK:     {{.*}} "chocola.yield"({{.*}}) : (!chocola.unknown) -> ()
+// CHECK:       builtin.module {
+// CHECK-NEXT:    "chocola.enum"() <{sym = @Box, typeParams = [@a]}> ({
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @MkBox, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "7"}> : () -> !chocola.int
+// CHECK-NEXT:    %1 = "chocola.construct"(%0) <{ctor = @MkBox}> : (!chocola.int) -> !chocola.named<@Box>
+// CHECK-NEXT:    %2 = "chocola.match"(%1) ({
+// CHECK-NEXT:      "chocola.case"() <{ctor = @MkBox}> ({
+// CHECK-NEXT:      ^bb0(%3: !chocola.unknown):
+// CHECK-NEXT:        "chocola.yield"(%3) : (!chocola.unknown) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:    }) : (!chocola.named<@Box>) -> !chocola.named<@a>
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      %3 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// CHECK-NEXT:      "chocola.return"(%3) : (!chocola.int) -> ()
+// CHECK-NEXT:    }) : () -> ()
+// CHECK-NEXT:  }

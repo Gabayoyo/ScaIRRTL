@@ -1,0 +1,5 @@
+// RUN: choco-opt %s 2>&1 | filecheck %s
+
+def main(x: Int): Int = x
+
+// CHECK: Source main function must have signature def main(): Int

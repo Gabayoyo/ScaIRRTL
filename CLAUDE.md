@@ -74,6 +74,8 @@ constructor field types.
 Key invariants:
 - `generateExpr(expr)(using Env)` returns a `Generated(ops, value)`: the ops to emit, in order, and the SSA value holding the result.
 - `generateDecl(decl)(using Env)` returns `(ops, newEnv)`; `generateProgram` folds over declarations threading the env.
+- `generateProgram` accepts either a source `def main(): Int` or a final expression, but not both. Without a source main, it synthesizes `chocola.func @main`; an absent or non-`Int` expression returns zero, after evaluating the expression when present.
+- Top-level `val` declarations remain ordered, immutable module-level SSA bindings. Functions may capture them until a later pass eliminates captures.
 - Regions with a non-terminator result use `YieldOp` (see `yielding`); function bodies use `ReturnOp`.
 - Nested regions (lambdas, functions, match cases) pass an extended env explicitly via `(using env.bindAll(...))`, so inner bindings can't escape.
 - When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a generation case in `generateExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.
@@ -92,6 +94,20 @@ val x = 42
 ```
 
 `chocola-parse` is resolved by `lit` to `out/main/launcher.dest/run` (built by Mill). Run all tests with `./mill filechecks.run`.
+
+IR-based tests use complete, exact FileCheck expectations generated with
+[`filecheckize`](https://pypi.org/project/filecheckize/). Install it in a new
+environment with `pip install filecheckize`, then regenerate a check block by
+piping the relevant compiler invocation into it, for example:
+
+```sh
+choco-opt input.cola | filecheckize
+choco-opt -p convert-choco-to-func input.cola | filecheckize --check-prefix FUNCTIONS
+```
+
+Do not anonymize SSA values or block labels: concrete names make the expected
+IR easier to follow and verify operand wiring. Keep the generated `CHECK-NEXT`
+lines so tests cover the complete operation order and module structure.
 
 ## CI
 
