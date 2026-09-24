@@ -1,0 +1,10 @@
+// RUN: choco-opt -p convert-choco-to-mlir --run %s | filecheck %s
+// REQUIRES: mlir-opt, mlir-runner
+
+def clamp(x: Int, lower: Int, upper: Int): Int =
+  if x < lower then lower else if x > upper then upper else x
+
+def main(): Int =
+  clamp(-10, 0, 100) + clamp(150, 0, 100) + clamp(42, 0, 100)
+
+// CHECK: 142

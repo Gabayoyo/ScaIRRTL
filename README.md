@@ -17,6 +17,9 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 # Run the currently supported ChocoLa-to-MLIR conversion
 ./mill opt.run -p convert-choco-to-mlir path/to/file.cola
 
+# Lower and execute main through upstream MLIR tools
+./mill opt.run -p convert-choco-to-mlir --run path/to/file.cola
+
 # Run lit + FileCheck tests
 ./mill filechecks.run
 
@@ -36,7 +39,9 @@ individual ChocoLa passes are `convert-choco-to-func`,
 `convert-choco-to-scf`, and `convert-choco-to-arith`;
 `convert-choco-to-mlir` runs all three followed by
 `reconcile-unrealized-casts`. Use `--dump-ast` to inspect a `.cola` file before
-IR generation.
+IR generation. Use `--run` after selecting the necessary lowering passes to
+execute `main` as a `() -> i32` function; this requires `mlir-opt` and
+`mlir-runner` to be available on `PATH`.
 
 ## Conversion direction
 

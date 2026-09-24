@@ -14,8 +14,14 @@ import scair.utils.*
 import scair.verify.Verifier
 import scopt.OParser
 
+import java.io.IOException
+import java.io.OutputStreamWriter
+import java.io.StringWriter
+import java.lang.ProcessBuilder.Redirect
+import java.nio.charset.StandardCharsets
 import scala.io.BufferedSource
 import scala.io.Source
+import scala.jdk.CollectionConverters.*
 
 case class ChocoOptArgs(
     allowUnregistered: Boolean = false,
@@ -27,6 +33,7 @@ case class ChocoOptArgs(
     passes: Seq[String] = Seq(),
     verifyDiagnostics: Boolean = false,
     dumpAst: Boolean = false,
+    run: Boolean = false,
 )
 
 object Main:
@@ -131,6 +138,9 @@ object Main:
         opt[Unit]("dump-ast").optional()
           .text("Print the parsed ChocoLa AST instead of generating IR")
           .action((_, c) => c.copy(dumpAst = true)),
+        opt[Unit]("run").optional()
+          .text("Execute the lowered main function with MLIR tools")
+          .action((_, c) => c.copy(run = true)),
       )
 
     OParser.parse(argparser, args, ChocoOptArgs()).get
@@ -161,6 +171,53 @@ object Main:
           println("Parsing failed.")
       if index + 1 < chunks.length then println("// -----")
     }
+
+  private def runModule(operation: Operation, printGeneric: Boolean): Unit =
+    val writer = StringWriter()
+    val printer = AssemblyPrinter(printGeneric, p = writer)
+    printer.printTopLevel(operation)
+    printer.flush()
+
+    val mlirOpt = ProcessBuilder(
+      "mlir-opt",
+      "--convert-scf-to-cf",
+      "--convert-to-llvm",
+    ).redirectError(Redirect.INHERIT)
+    val mlirRunner = ProcessBuilder(
+      "mlir-runner",
+      "-e",
+      "main",
+      "--entry-point-result=i32",
+    ).redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT)
+
+    val processes =
+      try ProcessBuilder.startPipeline(List(mlirOpt, mlirRunner).asJava)
+      catch
+        case error: IOException =>
+          Console.err.println(
+            s"error: unable to start MLIR execution pipeline: ${error.getMessage}"
+          )
+          sys.exit(1)
+
+    val optimizer = processes.get(0)
+    val runner = processes.get(1)
+    val optimizerInput = OutputStreamWriter(
+      optimizer.getOutputStream,
+      StandardCharsets.UTF_8,
+    )
+    try optimizerInput.write(writer.toString)
+    finally optimizerInput.close()
+
+    val optimizerStatus = optimizer.waitFor()
+    val runnerStatus = runner.waitFor()
+    if optimizerStatus != 0 then
+      Console.err
+        .println(s"error: mlir-opt exited with status $optimizerStatus")
+      sys.exit(optimizerStatus)
+    if runnerStatus != 0 then
+      Console.err
+        .println(s"error: mlir-runner exited with status $runnerStatus")
+      sys.exit(runnerStatus)
 
   def main(args: Array[String]): Unit =
     val parsedArgs = parseArgs(args)
@@ -215,12 +272,19 @@ object Main:
                 parsedArgs.verifyDiagnostics,
               )
 
-          val printer = AssemblyPrinter(parsedArgs.printGeneric)
-          processedModule.fold(_ => (), printer.printTopLevel)
-          printer.flush()
+          if parsedArgs.run then
+            processedModule.fold(
+              _ => (),
+              runModule(_, parsedArgs.printGeneric),
+            )
+          else
+            val printer = AssemblyPrinter(parsedArgs.printGeneric)
+            processedModule.fold(_ => (), printer.printTopLevel)
+            printer.flush()
         case Err(msg = errorMsg) =>
           if parsedArgs.parsingDiagnostics then println(errorMsg)
           else throw Exception(errorMsg)
 
-      if index + 1 < parsedModules.length then println("// -----")
+      if index + 1 < parsedModules.length && !parsedArgs.run then
+        println("// -----")
     }
