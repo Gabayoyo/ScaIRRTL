@@ -4,4 +4,4 @@
 val bad = if true then 1 else "no"
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Type mismatch: expected TInt but got TString
+// CHECK: {{.*}}error_if_mismatch.cola:4:31-35: Type error: Type mismatch: expected TInt but got TString

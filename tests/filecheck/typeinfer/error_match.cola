@@ -22,6 +22,6 @@ val bad2 = Circle(1) match {
 }
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Non-exhaustive match on Shape: missing Rect
-// CHECK: Type error: Constructor Red does not belong to enum Shape
-// CHECK: Type error: Non-exhaustive match on Shape: missing Rect
+// CHECK: {{.*}}error_match.cola:15:12-17.2: Type error: Non-exhaustive match on Shape: missing Rect
+// CHECK: {{.*}}error_match.cola:21:3-18: Type error: Constructor Red does not belong to enum Shape
+// CHECK: {{.*}}error_match.cola:19:12-22.2: Type error: Non-exhaustive match on Shape: missing Rect

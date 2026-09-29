@@ -8,8 +8,14 @@ import com.goyeau.mill.scalafix.ScalafixModule
 
 import mill.*, scalalib.*
 
+object versions:
+    val scair = "0.0.0-1-a7b7f7-SNAPSHOT"
+    val scala = "3.9.0"
+    val fastparse = "3.1.1"
+    val scopt = "4.1.0"
+
 trait ChocoLaModule extends ScalaModule with ScalafixModule:
-    override def scalaVersion = "3.9.0"
+    override def scalaVersion = versions.scala
 
 object `package` extends ChocoLaModule:
     object dialects extends ChocoLaModule:
@@ -21,29 +27,29 @@ object `package` extends ChocoLaModule:
             )
         }
         override def mvnDeps = Seq(
-            mvn"io.github.edin-dal::scair-core::0.0.0-1-cda364-SNAPSHOT",
-            mvn"io.github.edin-dal::scair-dialects-arith::0.0.0-1-cda364-SNAPSHOT",
-            mvn"io.github.edin-dal::scair-dialects-func::0.0.0-1-cda364-SNAPSHOT",
-            mvn"io.github.edin-dal::scair-dialects-scf::0.0.0-1-cda364-SNAPSHOT"
+            mvn"io.github.edin-dal::scair-core::${versions.scair}",
+            mvn"io.github.edin-dal::scair-dialects-arith::${versions.scair}",
+            mvn"io.github.edin-dal::scair-dialects-func::${versions.scair}",
+            mvn"io.github.edin-dal::scair-dialects-scf::${versions.scair}"
         )
 
     
     object parser extends ChocoLaModule:
         override def mvnDeps = Seq(
-            mvn"com.lihaoyi::fastparse:3.1.1"
+            mvn"com.lihaoyi::fastparse::${versions.fastparse}"
         )
 
         override def moduleDeps = Seq(dialects)
 
     object lowering extends ChocoLaModule:
         override def mvnDeps = Seq(
-            mvn"io.github.edin-dal::scair-passes::0.0.0-1-cda364-SNAPSHOT"
+            mvn"io.github.edin-dal::scair-passes::${versions.scair}"
         )
         override def moduleDeps = Seq(dialects)
 
     object opt extends ChocoLaModule:
         override def mvnDeps = Seq(
-            mvn"com.github.scopt::scopt:4.1.0"
+            mvn"com.github.scopt::scopt::${versions.scopt}"
         )
         override def moduleDeps = Seq(parser, lowering)
 

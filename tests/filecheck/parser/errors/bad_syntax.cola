@@ -3,8 +3,7 @@
 // Missing binding name: `val = 42` is not valid syntax.
 val = 42
 
-// CHECK: error: line 4, column 5:
+// CHECK: {{.*}}bad_syntax.cola:4:5: Parse error: expected variable name
 // CHECK-NEXT: val = 42
 // CHECK-NEXT:     ^
-// CHECK-NEXT: expected: variable name
 // CHECK-NEXT: Parsing failed.

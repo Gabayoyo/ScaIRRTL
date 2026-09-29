@@ -15,6 +15,7 @@ The project uses a bundled `./mill` wrapper script (no global installation neede
 | Compile all modules | `./mill __.compile` |
 | Run the compiler on a file | `./mill opt.run <file.cola>` |
 | Dump raw AST instead of IR | `./mill opt.run --dump-ast <file.cola>` |
+| Print IR with source locations | `./mill opt.run --print-locations <file.cola>` |
 | Run lit + FileCheck tests | `./mill filechecks.run` |
 | Format all sources | `./mill format` |
 | Check formatting (CI) | `./mill checkFormat` |
@@ -63,6 +64,7 @@ Module dependency chain: `dialects` ← `parser` ← `main`.
 - **Constructors vs variables**: uppercase-starting names followed by `(...)` are parsed as `Construct` at the atom level; lowercase names are `Var`.
 - **`match` and `enum` bodies use braces** (`{ case ... }`) to avoid indentation sensitivity in fastparse.
 - **`Program.expr` is `Option[Expr]`** so files containing only declarations (like `zero.cola`) parse correctly.
+- **Source locations** reuse ScaIR's `scair.ir.Location`. `Expr`, `Decl`, `MatchCase` and `EnumCase` extend `Located`, which mirrors `Operation.location`/`Operation.at` and keeps the location outside the constructor (so `toString`, equality and patterns are unaffected). `parseSource` parses a `SourceInput` (an `IndexedParserInput` that knows its file name and `--split-input-file` line offset), so the parser builds `FileLineColRange`s directly: every node spans its full source text (end column one past the last character, as in MLIR). Nodes are located with `located(...)`, or, for infix/postfix nodes (`BinOp`, `Apply`, `Match`), with `spanning` from the start of their left operand/callee. `diagnostic(location, msg)` prefixes messages with the range in VS Code's terminal-link format (`file:line:col-endCol`, or `file:line:col-endLine.endCol` across lines).
 - **fastparse tuple flattening**: `P[(String, Type)]` is flattened when composed with `~`, so typed-parameter lists are collected via `lambdaParamList: P[List[(String, Type)]]` before being composed further.
 
 ## IR generation (parser module)
@@ -76,6 +78,8 @@ Key invariants:
 - `generateDecl(decl)(using Env)` returns `(ops, newEnv)`; `generateProgram` folds over declarations threading the env.
 - `generateProgram` accepts either a source `def main(): Int` or a final expression, but not both. Without a source main, it synthesizes `chocola.func @main`; an absent or non-`Int` expression returns zero, after evaluating the expression when present.
 - Top-level `val` declarations remain ordered, immutable module-level SSA bindings. Functions may capture them until a later pass eliminates captures.
+- Every op generated from a source node is stamped with its location via `.at(node.location)`; `YieldOp`/`ReturnOp` take the location of the returned expression. Synthesized ops (zero-return, module) keep `UnknownLoc`. Lowering passes do not forward locations.
+- Source-level errors raised during generation throw `SourceError(msg, location)`, which `choco-opt` renders as `file:line:col: error: msg`. Type errors carry a location too.
 - Regions with a non-terminator result use `YieldOp` (see `yielding`); function bodies use `ReturnOp`.
 - Nested regions (lambdas, functions, match cases) pass an extended env explicitly via `(using env.bindAll(...))`, so inner bindings can't escape.
 - When adding a new `Expr` variant in `Ast.scala`, add a matching op in `ChocolaDialect.scala`, a generation case in `generateExpr`, and register the op in the `summonDialect` tuple at the bottom of `ChocolaDialect.scala`.

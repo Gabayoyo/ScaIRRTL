@@ -2,4 +2,4 @@
 
 def main[a](): Int = 0
 
-// CHECK: Source main function must have signature def main(): Int
+// CHECK: {{.*}}polymorphic_main.cola:3:1-23: error: Source main function must have signature def main(): Int

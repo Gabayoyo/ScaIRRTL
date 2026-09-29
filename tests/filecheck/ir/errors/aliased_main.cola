@@ -3,4 +3,4 @@
 type MyInt = Int
 def main(): MyInt = 0
 
-// CHECK: Source main function must have signature def main(): Int
+// CHECK: {{.*}}aliased_main.cola:4:1-22: error: Source main function must have signature def main(): Int

@@ -76,6 +76,10 @@ private final case class Env(
   def bindConstructors(ctors: Seq[(String, Seq[ChocolaType])]): Env =
     copy(constructors = constructors ++ ctors)
 
+/** A source-level error, tied to the location of the offending node. */
+final case class SourceError(msg: String, location: Location)
+    extends Exception(msg)
+
 /** The ops generated for an expression, and the SSA value holding its result.
   */
 private final case class Generated(
@@ -97,6 +101,14 @@ private def generateAll(
 private def resultOf(expr: Expr): Result[ChocolaType] =
   Result(optionalAstTypeToAttr(expr.tpe))
 
+/** A single op for `expr`, located at `expr`. */
+private def singleAt(
+    expr: Expr,
+    op: Operation,
+    result: Value[ChocolaType],
+): Generated =
+  single(op.at(expr.location), result)
+
 // ---------------------------------------------------------------------------
 // Top-level entry point
 // ---------------------------------------------------------------------------
@@ -107,24 +119,28 @@ def generateProgram(program: Program): ModuleOp =
   }
 
   if sourceMains.size > 1 then
-    throw IllegalArgumentException(
-      "Program may define at most one source main function"
+    throw SourceError(
+      "Program may define at most one source main function",
+      sourceMains(1).location,
     )
 
   sourceMains.headOption.foreach {
-    case DefDecl(_, typeParams, params, returnType, _)
+    case decl @ DefDecl(_, typeParams, params, returnType, _)
         if typeParams.nonEmpty || params.nonEmpty ||
           returnType != AstType.TInt =>
-      throw IllegalArgumentException(
-        "Source main function must have signature def main(): Int"
+      throw SourceError(
+        "Source main function must have signature def main(): Int",
+        decl.location,
       )
     case _ =>
   }
 
-  if sourceMains.nonEmpty && program.expr.nonEmpty then
-    throw IllegalArgumentException(
-      "Program cannot contain both a source main function and a final expression"
+  program.expr.filter(_ => sourceMains.nonEmpty).foreach { expr =>
+    throw SourceError(
+      "Program cannot contain both a source main function and a final expression",
+      expr.location,
     )
+  }
   val (declOps, env) =
     program.decls
       .foldLeft((Seq.empty[Operation], Env())) { case ((ops, env), decl) =>
@@ -141,11 +157,12 @@ private def generateMain(expr: Option[Expr])(using Env): FuncDeclOp =
   val bodyOps = expr match
     case Some(expr) =>
       val g = generateExpr(expr)
-      if expr.tpe.contains(AstType.TInt) then g.ops :+ ReturnOp(g.value)
+      if expr.tpe.contains(AstType.TInt) then
+        g.ops :+ ReturnOp(g.value).at(expr.location)
       else g.ops ++ zeroReturn
     case None => zeroReturn
 
-  FuncDeclOp(
+  val mainOp = FuncDeclOp(
     symbolRef("main"),
     ArrayAttribute[SymbolRefAttr](),
     FunctionType(
@@ -154,6 +171,7 @@ private def generateMain(expr: Option[Expr])(using Env): FuncDeclOp =
     ),
     Region(Block(bodyOps)),
   )
+  expr.fold(mainOp)(expr => mainOp.at(expr.location))
 
 private def zeroReturn: Seq[Operation] =
   val zero = Result[ChocolaType](IntType())
@@ -188,18 +206,20 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
         (args: Iterable[Value[Attribute]]) =>
           val g =
             generateExpr(body)(using outerEnv.bindAll(params.map(_._1), args))
-          g.ops :+ ReturnOp(g.value),
+          g.ops :+ ReturnOp(g.value).at(body.location),
       )
       val funcOp = FuncDeclOp(
         sym,
         ArrayAttribute(typeParams.map(symbolRef)*),
         functionType,
         Region(bodyBlock),
-      )
+      ).at(decl.location)
       (Seq(funcOp), outerEnv)
 
     case TypeDecl(name, tpe) =>
-      (Seq(TypeAliasDeclOp(symbolRef(name), convertAstType(tpe))), env)
+      val aliasOp =
+        TypeAliasDeclOp(symbolRef(name), convertAstType(tpe)).at(decl.location)
+      (Seq(aliasOp), env)
 
     case EnumDecl(name, typeParams, cases) =>
       val ctorTypes = cases.map { case EnumCase(caseName, fields) =>
@@ -209,17 +229,18 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
         caseName -> bindingTypes
       }
       val caseOps: Seq[Operation] = cases.map {
-        case EnumCase(caseName, fields) =>
+        case enumCase @ EnumCase(caseName, fields) =>
           val fieldAttrs = fields.map { case (fieldName, fieldType) =>
             EnumFieldAttr(symbolRef(fieldName), convertAstType(fieldType))
           }
           EnumCaseDeclOp(symbolRef(caseName), ArrayAttribute(fieldAttrs*))
+            .at(enumCase.location)
       }
       val enumOp = EnumDeclOp(
         symbolRef(name),
         ArrayAttribute(typeParams.map(symbolRef)*),
         Region(Block(caseOps)),
-      )
+      ).at(decl.location)
       (Seq(enumOp), env.bindConstructors(ctorTypes))
 
 // ---------------------------------------------------------------------------
@@ -231,14 +252,19 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
 
     case Expr.Lit(lit, _) =>
       val result = resultOf(expr)
-      single(ConstantOp(StringData(literalToString(lit)), result), result)
+      singleAt(
+        expr,
+        ConstantOp(StringData(literalToString(lit)), result),
+        result,
+      )
 
     case Expr.Var(name, _) =>
       env.locals.get(name) match
         case Some(value) => Generated(Seq.empty, value)
         case None        =>
           val result = resultOf(expr)
-          single(
+          singleAt(
+            expr,
             FunctionRefOp(env.functions(name), asResult[FunType](result)),
             result,
           )
@@ -248,21 +274,23 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
       val rg = generateExpr(r)
       val result = resultOf(expr)
       Generated(
-        lg.ops ++ rg.ops :+ binaryOp(op, lg.value, rg.value, result),
+        lg.ops ++ rg.ops :+ binaryOp(op, lg.value, rg.value, result)
+          .at(expr.location),
         result,
       )
 
     case Expr.UnOp(op, e, _) =>
       val g = generateExpr(e)
       val result = resultOf(expr)
-      Generated(g.ops :+ unaryOp(op, g.value, result), result)
+      Generated(g.ops :+ unaryOp(op, g.value, result).at(expr.location), result)
 
     case Expr.Apply(Expr.Var(name, _), args, _)
         if !env.locals.contains(name) && env.functions.contains(name) =>
       val (argOps, argVals) = generateAll(args)
       val result = resultOf(expr)
       Generated(
-        argOps :+ DirectCallOp(env.functions(name), argVals, result),
+        argOps :+ DirectCallOp(env.functions(name), argVals, result)
+          .at(expr.location),
         result,
       )
 
@@ -272,7 +300,8 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
       val result = resultOf(expr)
       Generated(
         fg.ops ++ argOps :+
-          CallOp(asOperand[FunType](fg.value), argVals, result),
+          CallOp(asOperand[FunType](fg.value), argVals, result)
+            .at(expr.location),
         result,
       )
 
@@ -281,7 +310,8 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
       val result = resultOf(expr)
       Generated(
         argOps :+
-          ConstructOp(symbolRef(name), argVals, asResult[NamedType](result)),
+          ConstructOp(symbolRef(name), argVals, asResult[NamedType](result))
+            .at(expr.location),
         result,
       )
 
@@ -289,7 +319,8 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
       val (elemOps, elemVals) = generateAll(elems)
       val result = resultOf(expr)
       Generated(
-        elemOps :+ TupleOp(elemVals, asResult[TupleType](result)),
+        elemOps :+ TupleOp(elemVals, asResult[TupleType](result))
+          .at(expr.location),
         result,
       )
 
@@ -301,7 +332,7 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
         result,
         Region(Block(yielding(thenBranch))),
         Region(Block(yielding(elseBranch))),
-      )
+      ).at(expr.location)
       Generated(cg.ops :+ ifOp, result)
 
     case Expr.Lambda(params, body, _) =>
@@ -312,13 +343,17 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
         (args: Iterable[Value[Attribute]]) =>
           yielding(body)(using env.bindAll(params.map(_._1), args)),
       )
-      single(LambdaOp(asResult[FunType](result), Region(bodyBlock)), result)
+      singleAt(
+        expr,
+        LambdaOp(asResult[FunType](result), Region(bodyBlock)),
+        result,
+      )
 
     case Expr.Match(scrutinee, cases, _) =>
       val sg = generateExpr(scrutinee)
       val result = resultOf(expr)
       val caseOps: Seq[Operation] = cases.map {
-        case MatchCase(ctor, bindings, body) =>
+        case matchCase @ MatchCase(ctor, bindings, body) =>
           val bindingTypes = env.constructors
             .getOrElse(ctor, bindings.map(_ => unknown))
           val bodyBlock = Block(
@@ -326,17 +361,18 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
             (bindingArgs: Iterable[Value[Attribute]]) =>
               yielding(body)(using env.bindAll(bindings, bindingArgs)),
           )
-          CaseOp(symbolRef(ctor), Region(bodyBlock))
+          CaseOp(symbolRef(ctor), Region(bodyBlock)).at(matchCase.location)
       }
       Generated(
-        sg.ops :+ MatchOp(sg.value, result, Region(Block(caseOps))),
+        sg.ops :+ MatchOp(sg.value, result, Region(Block(caseOps)))
+          .at(expr.location),
         result,
       )
 
 /** The ops of `expr` followed by a `YieldOp` of its value. */
 private def yielding(expr: Expr)(using Env): Seq[Operation] =
   val g = generateExpr(expr)
-  g.ops :+ YieldOp(g.value)
+  g.ops :+ YieldOp(g.value).at(expr.location)
 
 private def binaryOp(
     op: String,

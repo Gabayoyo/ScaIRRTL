@@ -6,4 +6,4 @@
 val x = unboundName
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Unbound variable: unboundName
+// CHECK: {{.*}}error_unbound.cola:6:9-20: Type error: Unbound variable: unboundName

@@ -2,6 +2,10 @@ package chocola.parser
 
 import fastparse.*
 import fastparse.NoWhitespace.*
+import scair.ir.FileLineColLoc
+import scair.ir.FileLineColRange
+import scair.ir.Location
+import scair.ir.UnknownLoc
 
 import Literal.*
 import Type.*
@@ -45,6 +49,39 @@ val keywords: Set[String] = Set(
   "foldLeft",
   "foldRight",
 )
+
+// ─── Source locations ────────────────────────────────────────────────────────
+
+// Source text that knows which file it comes from. `lineOffset` shifts the
+// lines of a chunk parsed out of a larger file (e.g. --split-input-file).
+final class SourceInput(data: String, file: String, lineOffset: Int)
+    extends IndexedParserInput(data):
+
+  // The 1-based line and column fastparse reports, as a ScaIR location.
+  def location(index: Int): FileLineColLoc =
+    val lineCol = prettyIndex(index).split(':')
+    FileLineColLoc(file, lineCol(0).toInt + lineOffset, lineCol(1).toInt)
+
+  // The text between two indices; the end column is one past the last
+  // character, as in MLIR.
+  def range(start: Int, end: Int): FileLineColRange =
+    val from = location(start)
+    val to = location(end)
+    FileLineColRange(file, from.line, from.column, to.line, to.column)
+
+// The location of the text between two indices of the current input.
+private def span[$: P](start: Int, end: Int): Location =
+  summon[P[Any]].input match
+    case input: SourceInput => input.range(start, end)
+    case _                  => UnknownLoc
+
+// Annotates the node parsed by p with the range of text it was parsed from,
+// unless it already has one: an operand passed through unchanged (e.g. the
+// inner expression of a parenthesised group) keeps its own range.
+def located[$: P, T <: Located](p: => P[T]): P[T] =
+  P(Index ~ p ~ Index).map { (start, node, end) =>
+    if node.location == UnknownLoc then node.at(span(start, end)) else node
+  }
 
 // ─── Literals ────────────────────────────────────────────────────────────────
 
@@ -100,53 +137,73 @@ def parenType[$: P]: P[Type] =
 def expr[$: P]: P[Expr] = P(orExpr)
 
 def orExpr[$: P]: P[Expr] =
-  P(andExpr ~ (ws ~ "||" ~ ws ~ andExpr).rep).map { case (h, t) =>
-    t.foldLeft(h)(BinOp("||", _, _))
+  P(Index ~ andExpr ~ (ws ~ "||" ~ ws ~ andExpr ~ Index).rep).map {
+    case (start, h, t) =>
+      t.foldLeft(h) { case (acc, (e, end)) =>
+        BinOp("||", acc, e).at(span(start, end))
+      }
   }
 
 def andExpr[$: P]: P[Expr] =
-  P(eqExpr ~ (ws ~ "&&" ~ ws ~ eqExpr).rep).map { case (h, t) =>
-    t.foldLeft(h)(BinOp("&&", _, _))
+  P(Index ~ eqExpr ~ (ws ~ "&&" ~ ws ~ eqExpr ~ Index).rep).map {
+    case (start, h, t) =>
+      t.foldLeft(h) { case (acc, (e, end)) =>
+        BinOp("&&", acc, e).at(span(start, end))
+      }
   }
 
 def eqExpr[$: P]: P[Expr] =
-  P(cmpExpr ~ (ws ~ ("==" | "!=").! ~ ws ~ cmpExpr).rep).map { case (h, t) =>
-    t.foldLeft(h) { case (acc, (op, e)) => BinOp(op, acc, e) }
+  P(Index ~ cmpExpr ~ (ws ~ ("==" | "!=").! ~ ws ~ cmpExpr ~ Index).rep).map {
+    case (start, h, t) =>
+      t.foldLeft(h) { case (acc, (op, e, end)) =>
+        BinOp(op, acc, e).at(span(start, end))
+      }
   }
 
 // <= and >= must be tried before < and > to avoid partial matches.
 def cmpExpr[$: P]: P[Expr] =
-  P(consExpr ~ (ws ~ ("<=" | ">=" | "<" | ">").! ~ ws ~ consExpr).rep).map {
-    case (h, t) => t.foldLeft(h) { case (acc, (op, e)) => BinOp(op, acc, e) }
+  P(
+    Index ~ consExpr ~
+      (ws ~ ("<=" | ">=" | "<" | ">").! ~ ws ~ consExpr ~ Index).rep
+  ).map { case (start, h, t) =>
+    t.foldLeft(h) { case (acc, (op, e, end)) =>
+      BinOp(op, acc, e).at(span(start, end))
+    }
   }
 
 // :: is right-associative (list cons).
 def consExpr[$: P]: P[Expr] =
-  P(addExpr ~ (ws ~ "::" ~ ws ~ consExpr).?).map {
+  located(P(addExpr ~ (ws ~ "::" ~ ws ~ consExpr).?).map {
     case (e, None)    => e
     case (e, Some(r)) => BinOp("::", e, r)
-  }
+  })
 
 def addExpr[$: P]: P[Expr] =
-  P(mulExpr ~ (ws ~ CharIn("+\\-").! ~ ws ~ mulExpr).rep).map { case (h, t) =>
-    t.foldLeft(h) { case (acc, (op, e)) => BinOp(op, acc, e) }
+  P(Index ~ mulExpr ~ (ws ~ CharIn("+\\-").! ~ ws ~ mulExpr ~ Index).rep).map {
+    case (start, h, t) =>
+      t.foldLeft(h) { case (acc, (op, e, end)) =>
+        BinOp(op, acc, e).at(span(start, end))
+      }
   }
 
 def mulExpr[$: P]: P[Expr] =
-  P(unaryExpr ~ (ws ~ CharIn("*/").! ~ ws ~ unaryExpr).rep).map { case (h, t) =>
-    t.foldLeft(h) { case (acc, (op, e)) => BinOp(op, acc, e) }
-  }
+  P(Index ~ unaryExpr ~ (ws ~ CharIn("*/").! ~ ws ~ unaryExpr ~ Index).rep)
+    .map { case (start, h, t) =>
+      t.foldLeft(h) { case (acc, (op, e, end)) =>
+        BinOp(op, acc, e).at(span(start, end))
+      }
+    }
 
 def unaryExpr[$: P]: P[Expr] =
   P(
-    ("-" ~ ws ~ unaryExpr).map(UnOp("-", _)) | ("!" ~ ws ~ unaryExpr)
-      .map(UnOp("!", _)) | postfixExpr
+    located(("-" ~ ws ~ unaryExpr).map(UnOp("-", _))) |
+      located(("!" ~ ws ~ unaryExpr).map(UnOp("!", _))) | postfixExpr
   )
 
 // Function calls and match are postfix operations chained left-to-right.
 def postfixExpr[$: P]: P[Expr] =
-  P(atom ~ postfix.rep).map { case (base, ops) =>
-    ops.foldLeft(base)((acc, f) => f(acc))
+  P(Index ~ atom ~ (postfix ~ Index).rep).map { case (start, base, ops) =>
+    ops.foldLeft(base) { case (acc, (f, end)) => f(acc).at(span(start, end)) }
   }
 
 def postfix[$: P]: P[Expr => Expr] =
@@ -167,8 +224,8 @@ def exprList[$: P]: P[List[Expr]] =
 
 def atom[$: P]: P[Expr] =
   P(
-    ifExpr | lambdaExpr | parenExpr | constructExpr | literal.map(Lit(_)) |
-      variable
+    located(ifExpr) | located(lambdaExpr) | parenExpr | located(constructExpr) |
+      located(literal.map(Lit(_))) | located(variable)
   )
 
 def variable[$: P]: P[Expr] = P(lowerIdent.map(Var(_)))
@@ -199,12 +256,13 @@ def lambdaExpr[$: P]: P[Expr] =
     case (params, body) => Lambda(params, body)
   }
 
-// Parenthesised expression or tuple (single element is just grouping).
+// Parenthesised expression or tuple (single element is just grouping, and
+// keeps the location of the inner expression).
 def parenExpr[$: P]: P[Expr] =
-  P("(" ~ ws ~ expr ~ (ws ~ "," ~ ws ~ expr).rep ~ ws ~ ")").map {
+  located(P("(" ~ ws ~ expr ~ (ws ~ "," ~ ws ~ expr).rep ~ ws ~ ")").map {
     case (e, rest) if rest.isEmpty => e
     case (e, rest)                 => Tuple(e :: rest.toList)
-  }
+  })
 
 // ─── Match cases ─────────────────────────────────────────────────────────────
 
@@ -215,15 +273,17 @@ def matchBindings[$: P]: P[List[String]] =
   }
 
 def matchCase[$: P]: P[MatchCase] =
-  P(
-    kw("case") ~ ws ~ upperIdent ~ "(" ~ ws ~ matchBindings ~ ws ~ ")" ~ ws ~
-      "=>" ~ ws ~ expr
-  ).map { case (ctor, bindings, body) => MatchCase(ctor, bindings, body) }
+  located(
+    P(
+      kw("case") ~ ws ~ upperIdent ~ "(" ~ ws ~ matchBindings ~ ws ~ ")" ~ ws ~
+        "=>" ~ ws ~ expr
+    ).map { case (ctor, bindings, body) => MatchCase(ctor, bindings, body) }
+  )
 
 // ─── Declarations ────────────────────────────────────────────────────────────
 
 def decl[$: P]: P[Decl] =
-  P(ws ~ (enumDecl | defDecl | typeDecl | valDecl))
+  P(ws ~ located(enumDecl | defDecl | typeDecl | valDecl))
 
 def valDecl[$: P]: P[Decl] =
   P(kw("val") ~/ ws ~ lowerIdent.opaque("variable name") ~ ws ~ "=" ~ ws ~ expr)
@@ -258,8 +318,10 @@ def enumDecl[$: P]: P[Decl] =
   }
 
 def enumCaseDecl[$: P]: P[EnumCase] =
-  P(kw("case") ~ ws ~ upperIdent ~ "(" ~ ws ~ lambdaParamList.? ~ ws ~ ")")
-    .map { case (name, fields) => EnumCase(name, fields.getOrElse(Nil)) }
+  located(
+    P(kw("case") ~ ws ~ upperIdent ~ "(" ~ ws ~ lambdaParamList.? ~ ws ~ ")")
+      .map { case (name, fields) => EnumCase(name, fields.getOrElse(Nil)) }
+  )
 
 // ─── Program ─────────────────────────────────────────────────────────────────
 
@@ -276,8 +338,13 @@ private def indexToLineCol(source: String, index: Int): (Int, Int) =
   val col = index - before.lastIndexOf('\n')
   (line, col)
 
-def parseSource(source: String): Either[String, Program] =
-  fastparse.parse(source, program(using _)) match
+def parseSource(
+    source: String,
+    file: String = "-",
+    lineOffset: Int = 0,
+): Either[String, Program] =
+  val input = SourceInput(source, file, lineOffset)
+  fastparse.parse(input, program(using _)) match
     case Parsed.Success(prog, _) => Right(prog)
     case f: Parsed.Failure       =>
       val (line, col) = indexToLineCol(source, f.index)
@@ -285,14 +352,14 @@ def parseSource(source: String): Either[String, Program] =
       val caret = " " * (col - 1) + "^"
       val expected = f.trace().msg.replaceAll(":\\d+:\\d+,.*", "")
         .stripPrefix("Expected ")
-      Left(
-        s"error: line $line, column $col:\n$sourceLine\n$caret\nexpected: $expected"
-      )
+      val header =
+        diagnostic(input.location(f.index), s"Parse error: expected $expected")
+      Left(s"$header\n$sourceLine\n$caret")
 
 def parseFile(file: String): Option[Program] =
   val input = scala.io.Source.fromFile(file)
   try
-    parseSource(input.mkString) match
+    parseSource(input.mkString, file) match
       case Right(program) => Some(program)
       case Left(error)    =>
         println(error)

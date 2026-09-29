@@ -3,4 +3,4 @@
 def main(): Int = 0
 def main(): Int = 1
 
-// CHECK: Program may define at most one source main function
+// CHECK: {{.*}}multiple_main.cola:4:1-20: error: Program may define at most one source main function

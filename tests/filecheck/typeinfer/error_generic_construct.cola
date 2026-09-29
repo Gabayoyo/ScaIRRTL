@@ -10,4 +10,4 @@ enum Pair2[a] {
 val bad = MkPair2(1, true)
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Type mismatch: expected TInt but got TBool
+// CHECK: {{.*}}error_generic_construct.cola:10:22-26: Type error: Type mismatch: expected TInt but got TBool

@@ -4,4 +4,4 @@ def main(): Int = 0
 
 1
 
-// CHECK: Program cannot contain both a source main function and a final expression
+// CHECK: {{.*}}main_and_expression.cola:5:1-2: error: Program cannot contain both a source main function and a final expression

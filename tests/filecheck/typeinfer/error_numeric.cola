@@ -5,4 +5,4 @@
 val bad = "a" + "b"
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Expected int or double in arithmetic, got TString
+// CHECK: {{.*}}error_numeric.cola:5:11-20: Type error: Expected int or double in arithmetic, got TString

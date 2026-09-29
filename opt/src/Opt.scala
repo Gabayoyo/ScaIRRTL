@@ -2,9 +2,13 @@ package chocola.main
 
 import chocola.dialects.ChocolaDialect
 import chocola.lowering.allPasses as chocolaPasses
+import chocola.parser.Program
+import chocola.parser.SourceError
+import chocola.parser.TypeError
+import chocola.parser.TypeInferencer
+import chocola.parser.diagnostic
 import chocola.parser.generateProgram
 import chocola.parser.parseSource
-import chocola.parser.TypeInferencer
 import scair.MLContext
 import scair.ir.*
 import scair.parse.*
@@ -30,6 +34,7 @@ case class ChocoOptArgs(
     splitInputFile: Boolean = false,
     parsingDiagnostics: Boolean = false,
     printGeneric: Boolean = false,
+    printLocations: Boolean = false,
     passes: Seq[String] = Seq(),
     verifyDiagnostics: Boolean = false,
     dumpAst: Boolean = false,
@@ -61,17 +66,37 @@ object Main:
     if splitInputFile then input.mkString.split("\n// -----\n")
     else Array(input.mkString)
 
-  private def parseChocola(
+  /** Parse each chunk of a ChocoLa input, locating it in the input file. */
+  private def parseChocolaChunks(
+      args: ChocoOptArgs,
       input: BufferedSource,
-      splitInputFile: Boolean,
+  ): Array[Either[String, Program]] =
+    val chunks = inputChunks(input, args.splitInputFile)
+    // Each `// -----` separator removes two newlines from the line count.
+    val lineOffsets = chunks
+      .scanLeft(0)((offset, chunk) => offset + chunk.count(_ == '\n') + 2)
+    val file = args.input.getOrElse("-")
+    chunks.zip(lineOffsets)
+      .map((chunk, offset) => parseSource(chunk, file, offset))
+
+  private def reportTypeErrors(errors: List[TypeError]): Unit =
+    errors.foreach(error =>
+      Console.err
+        .println(diagnostic(error.location, s"Type error: ${error.msg}"))
+    )
+
+  private def parseChocola(
+      args: ChocoOptArgs,
+      input: BufferedSource,
   ): Array[OK[Operation]] =
-    inputChunks(input, splitInputFile).map { source =>
-      parseSource(source) match
-        case Right(ast) =>
-          TypeInferencer().inferProgram(ast)
-            .foreach(error => Console.err.println(s"Type error: ${error.msg}"))
-          OK(generateProgram(ast): Operation)
-        case Left(error) => Err(error): OK[Operation]
+    parseChocolaChunks(args, input).map {
+      case Right(ast) =>
+        reportTypeErrors(TypeInferencer().inferProgram(ast))
+        try OK(generateProgram(ast): Operation)
+        catch
+          case SourceError(msg, location) =>
+            Err(diagnostic(location, s"error: $msg")): OK[Operation]
+      case Left(error) => Err(error): OK[Operation]
     }
 
   private def parseMlir(
@@ -103,8 +128,7 @@ object Main:
   private def parse(args: ChocoOptArgs)(
       input: BufferedSource
   ): Array[OK[Operation]] =
-    if args.input.exists(_.endsWith(".cola")) then
-      parseChocola(input, args.splitInputFile)
+    if args.input.exists(_.endsWith(".cola")) then parseChocola(args, input)
     else parseMlir(args)(input)
 
   private def parseArgs(args: Array[String]): ChocoOptArgs =
@@ -129,6 +153,9 @@ object Main:
         opt[Unit]('g', "print-generic").optional()
           .text("Print strictly in generic format")
           .action((_, c) => c.copy(printGeneric = true)),
+        opt[Unit]("print-locations").optional()
+          .text("Print operation source locations")
+          .action((_, c) => c.copy(printLocations = true)),
         opt[Seq[String]]('p', "passes").optional()
           .text("Specify passes to apply to the IR")
           .action((x, c) => c.copy(passes = x)),
@@ -148,23 +175,22 @@ object Main:
   private def handleVerificationError(
       error: Err,
       operation: Operation,
-      verifyDiagnostics: Boolean,
+      args: ChocoOptArgs,
   ): OK[Operation] =
-    val printer = ErrorPrinter(error)
+    val printer = ErrorPrinter(error, _printLocations = args.printLocations)
     printer.printTopLevel(operation)
-    if verifyDiagnostics then error else sys.exit(42)
+    if args.verifyDiagnostics then error else sys.exit(42)
 
   private def dumpAst(args: ChocoOptArgs, input: BufferedSource): Unit =
     if !args.input.exists(_.endsWith(".cola")) then
       throw IllegalArgumentException("--dump-ast requires a .cola input file")
 
-    val chunks = inputChunks(input, args.splitInputFile)
-    chunks.zipWithIndex.foreach { case (source, index) =>
-      parseSource(source) match
+    val chunks = parseChocolaChunks(args, input)
+    chunks.zipWithIndex.foreach { case (parsed, index) =>
+      parsed match
         case Right(ast) =>
           println("Parsing succeeded.")
-          TypeInferencer().inferProgram(ast)
-            .foreach(error => Console.err.println(s"Type error: ${error.msg}"))
+          reportTypeErrors(TypeInferencer().inferProgram(ast))
           println(ast)
         case Left(error) =>
           println(error)
@@ -255,22 +281,15 @@ object Main:
                   val output = pass.transform(module)
                   if !parsedArgs.skipVerify then
                     Verifier.verify(output).fold(
-                      handleVerificationError(
-                        _,
-                        output,
-                        parsedArgs.verifyDiagnostics,
-                      ),
+                      handleVerificationError(_, output, parsedArgs),
                       _ => (),
                     )
                   output
                 }
               }
             case error: Err =>
-              processedModule = handleVerificationError(
-                error,
-                inputModule,
-                parsedArgs.verifyDiagnostics,
-              )
+              processedModule =
+                handleVerificationError(error, inputModule, parsedArgs)
 
           if parsedArgs.run then
             processedModule.fold(
@@ -278,7 +297,10 @@ object Main:
               runModule(_, parsedArgs.printGeneric),
             )
           else
-            val printer = AssemblyPrinter(parsedArgs.printGeneric)
+            val printer = AssemblyPrinter(
+              parsedArgs.printGeneric,
+              printLocations = parsedArgs.printLocations,
+            )
             processedModule.fold(_ => (), printer.printTopLevel)
             printer.flush()
         case Err(msg = errorMsg) =>

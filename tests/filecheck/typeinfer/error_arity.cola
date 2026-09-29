@@ -11,5 +11,5 @@ enum Pair {
 val bad2 = MkPair(1)
 
 // CHECK: Parsing succeeded.
-// CHECK: Type error: Applying non-function type: TInt
-// CHECK: Type error: Constructor MkPair expects 2 args, got 1
+// CHECK: {{.*}}error_arity.cola:6:12-24: Type error: Applying non-function type: TInt
+// CHECK: {{.*}}error_arity.cola:11:12-21: Type error: Constructor MkPair expects 2 args, got 1
