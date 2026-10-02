@@ -18,6 +18,19 @@ changed, no edit is needed. Agents doing delegated work must report relevant
 documentation changes to the coordinating agent, who ensures they are included
 before the session ends.
 
+Consult [BACKLOG.md](BACKLOG.md) when choosing development work. Record durable
+discoveries and unresolved decisions under the relevant item, and add concise
+entries for newly discovered implementation gaps. Remove completed items once
+their decisions and behavior are captured in the specification, code, and tests
+as appropriate. Keep session transcripts and completed-work histories out of it.
+
+Keep language syntax and typing rules authoritative in `docs/_docs/spec.md`.
+The README should link to the specification rather than duplicate those rules;
+use it for project setup, tooling, implementation status, and navigation.
+`errors.md` is a contributor draft proposing beginner-friendly diagnostics
+for students using ChocoLa. Keep its proposals and Scala comparison material
+distinct from implemented behavior; exact current diagnostics belong in tests.
+
 ## What this is
 
 ChocoLaCompiler is a prototype compiler for an educational subset of Scala called "ChocoLa". It is written in Scala 3 using the [Mill](https://mill-build.org/) build tool. The goal is a readable, hackable codebase that students can use as a starting point to re-implement individual compiler passes.

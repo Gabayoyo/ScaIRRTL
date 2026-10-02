@@ -37,11 +37,11 @@ and pass-selection flags as `scair-opt`. Files ending in `.cola` use the
 ChocoLa frontend; all other files and standard input are parsed as MLIR. The
 individual ChocoLa passes are `convert-choco-to-func`,
 `convert-choco-to-scf`, and `convert-choco-to-arith`;
-`convert-choco-to-mlir` runs all three followed by
-`reconcile-unrealized-casts`. Use `--dump-ast` to inspect a `.cola` file before
-IR generation. Use `--run` after selecting the necessary lowering passes to
-execute `main` as a `() -> i32` function; this requires `mlir-opt` and
-`mlir-runner` to be available on `PATH`.
+`convert-choco-to-mlir` combines their patterns in one conversion sweep,
+with automatic cast reconciliation. Use `--dump-ast` to inspect a `.cola`
+file after type inference and before IR generation. Use `--run` after selecting
+the necessary lowering passes to execute `main` as a `() -> i32` function;
+this requires `mlir-opt` and `mlir-runner` to be available on `PATH`.
 
 ## Reading and building the specification
 
@@ -75,13 +75,16 @@ requests and uploads it as the `chocola-specification` artifact.
 
 ScaIR is used to build and print the IR; upstream MLIR is the eventual
 conversion backend. The `-p convert-choco-to-mlir` pipeline currently converts
-primitive types, scalar arithmetic, direct non-generic functions, calls,
-returns, and if-expressions to MLIR-compatible Builtin, Func, SCF, and Arith operations.
+scalar types, scalar arithmetic, direct non-generic functions without captures,
+calls, returns, and if-expressions to MLIR-compatible Builtin, Func, SCF, and
+Arith operations.
 Unsupported language constructs intentionally remain as `chocola.*` IR.
-Each conversion pass is a `WalkerPass` made from small, operation-local rewrite
-patterns. `builtin.unrealized_conversion_cast` bridges source and target types
-while the patterns run; ScaIR's reconciliation pass removes redundant cast
-chains afterward. Casts remain only at the boundary of residual ChocoLa IR.
+Each conversion pass is a ScaIR `ConversionPass` made from small,
+operation-local conversion patterns. `builtin.unrealized_conversion_cast`
+bridges source and target types while the patterns run; the conversion driver
+reconciles redundant cast chains
+afterward. The `reconcile-unrealized-casts` pass is also available explicitly.
+Casts remain only at the boundary of residual ChocoLa IR.
 
 Once a program contains no residual `chocola.*` operations, its output is
 intended to be passed to upstream tools such as `mlir-opt` for downstream
@@ -91,7 +94,7 @@ suite enables an additional handoff test for this boundary.
 ## Repository layout
 
 ```
-parser/             -- chocola.parser: AST + fastparse 3 parser
+parser/             -- chocola.parser: AST, fastparse 3 parser, type inference, IR generation
 dialects/           -- chocola.* types and operations
 lowering/           -- ChocoLa-to-Builtin/Func/SCF/Arith passes
 opt/                -- chocola.main: ScaIR-compatible optimizer CLI
@@ -101,6 +104,7 @@ tests/filecheck/    -- lit + FileCheck regression tests
 ## CI
 
 Three workflows run on pushes to `main` and pull requests:
+
 - **Format** — `./mill checkFormat` (scalafix + scalafmt)
 - **Tests** — `./mill filechecks.run` (lit + FileCheck)
 - **Specification** — `./mill opt.unidocSite` (whole-project Scaladoc build and HTML site artifact)
