@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+enum Box:
+  case Wrap(value: Int)
+val x = Wrap(1) match { case Wrap(v) => v }
+
+// CHECK:       {{.*}}/layout_match_braces.cola:5:23: Parse error: expected ("\r\n" | "\n")
+// CHECK-NEXT:  val x = Wrap(1) match { case Wrap(v) => v }
+// CHECK-NEXT:                        ^
+// CHECK-NEXT:  Parsing failed.

@@ -1,0 +1,41 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+// Flexible indentation widths, comments, and blank lines.
+enum Box: // the comment is not a case
+   // ignored, even at a different indentation
+
+    case Wrap(value: Int)
+    case Empty()
+
+def score(box: Box): Int =
+  box match
+    case Wrap(v) =>
+      Wrap(v) match
+        case Wrap(w) =>
+          if w > 0 then
+            w + // trailing operators may cross comment-only lines
+            // keep this expression together
+            1
+          else
+            0
+        case Empty() => 0
+    case Empty() => 0
+
+val inc = (x: Int) =>
+  x + 1
+val result =
+  score(Wrap(inc(2)))
+
+result
+
+// CHECK: Parsing succeeded.
+// CHECK: EnumDecl(Box,List(),List(EnumCase(Wrap,List((value,TInt))), EnumCase(Empty,List())))
+// CHECK: DefDecl(score,
+// CHECK-SAME: Match(Var(box,
+// CHECK-SAME: MatchCase(Wrap,List(v),Match(Construct(Wrap,
+// CHECK-SAME: MatchCase(Wrap,List(w),If(
+// CHECK-SAME: BinOp(+,Var(w,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt))
+// CHECK-SAME: MatchCase(Empty,List(),Lit(IntLit(0),Some(TInt)))),Some(TInt)))
+// CHECK-SAME: ValDecl(inc,Lambda(
+// CHECK-SAME: ValDecl(result,Apply(
+// CHECK-SAME: Some(Var(result,Some(TInt))))

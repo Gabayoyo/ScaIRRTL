@@ -13,17 +13,15 @@ def identity[a](x: a): a = x
 def add(x: Int, y: Int): Int = x + y
 
 // Zero-arg enum
-enum Color {
+enum Color:
   case Red()
   case Green()
   case Blue()
-}
 
 // Parameterised enum
-enum Tree[a] {
+enum Tree[a]:
   case Leaf(value: a)
   case Node(left: Tree[a], right: Tree[a])
-}
 
 // CHECK: Parsing succeeded.
 // CHECK: TypeDecl(MyInt,TInt)

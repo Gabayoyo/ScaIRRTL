@@ -1,0 +1,9 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+enum Box:
+	case Wrap(value: Int)
+
+// CHECK:       {{.*}}/layout_tabs.cola:4:2: Parse error: expected (end-of-input | spaces instead of tabs in indentation)
+// CHECK-NEXT:  	case Wrap(value: Int)
+// CHECK-NEXT:   ^
+// CHECK-NEXT:  Parsing failed.

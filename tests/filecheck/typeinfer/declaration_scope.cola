@@ -1,4 +1,4 @@
-// RUN: choco-opt %s | choco-opt | filecheck %s
+// RUN: choco-opt %s | filecheck %s
 
 val forwarded = later(1)
 val captured = 4

@@ -1,17 +1,15 @@
 // RUN: choco-opt --dump-ast %s | filecheck %s
 // Each constructor instantiates fresh arguments and matching substitutes them.
 
-enum Box[a] {
+enum Box[a]:
   case MkBox(value: a)
-}
 
 val bi = MkBox(1)
 val bs = MkBox(true)
 
 // The concrete field type propagates from the constructed scrutinee.
-val unwrapped = MkBox(7) match {
+val unwrapped = MkBox(7) match
   case MkBox(v) => v
-}
 
 // CHECK: Parsing succeeded.
 // CHECK: EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List()))))))

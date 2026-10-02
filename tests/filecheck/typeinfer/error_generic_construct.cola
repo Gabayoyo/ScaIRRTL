@@ -3,11 +3,10 @@
 // share the same fresh metavariable substitution for the enum's type
 // parameter, so passing mismatched concrete types is a real type error.
 
-enum Pair2[a] {
+enum Pair2[a]:
   case MkPair2(first: a, second: a)
-}
 
 val bad = MkPair2(1, true)
 
 // CHECK: Parsing succeeded.
-// CHECK: {{.*}}error_generic_construct.cola:10:22-26: Type error: Type mismatch: expected TInt but got TBool
+// CHECK: {{.*}}error_generic_construct.cola:9:22-26: Type error: Type mismatch: expected TInt but got TBool

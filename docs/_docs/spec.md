@@ -10,11 +10,18 @@ This document defines the syntax and typing rules of ChocoLa.
 
 ## Syntax
 
+The productions below define the syntactic forms. The mandatory rules in
+[Newlines and indentation](#newlines-and-indentation) also form part of the
+grammar: they constrain spacing, expression boundaries, and case blocks.
+The notation `uop · e` requires the unary operator to touch the first token
+of its operand, without intervening whitespace or comments; mathematical
+spacing elsewhere does not specify source spacing.
+
 ```math
 \begin{aligned}
 e ::= \
 &\ lit \\
-&\mid uop \ e \\
+&\mid uop \mathbin{\cdot} e \\
 &\mid e \ bop \ e \\
 &\mid x \\
 &\mid e (e_1, \cdots, e_n) \\
@@ -71,9 +78,107 @@ calls its returned function with one argument. Multiple lists in a declaration
 and partial application are excluded. The type `() => Int` denotes a function
 that must be called with `()` and is distinct from `Int`.
 
-Enum declarations use `enum T[a]:` followed by indented `case` declarations;
-non-generic enums omit `[a]`. Match cases likewise follow `expression match`
-on indented lines. Brace-delimited enum and match bodies are excluded.
+### Newlines and indentation
+
+ChocoLa chooses a small set of common Scala 3 layouts. Accepted layouts have
+Scala's expression grouping, but some of Scala's more flexible layouts are
+excluded. The parser is intended for education: compatibility comes first,
+then a clear implementation that students can read and modify. Performance
+and accepting additional formatting styles are secondary goals. The layout
+choices follow Scala's [indentation rules](https://docs.scala-lang.org/scala3/reference/other-new-features/indentation.html)
+and [newline rules](https://www.scala-lang.org/files/archive/spec/2.13/01-lexical-syntax.html#newline-characters),
+with the restrictions below.
+
+Indentation consists of spaces, with no fixed number of spaces per level.
+Tabs in code indentation are rejected; tabs between tokens are allowed.
+Blank and `//` comment-only lines do not establish indentation levels.
+Both LF and CRLF line endings are accepted, and a final newline is optional.
+Top-level declarations and the optional final expression each start on a
+separate line at column 1. Semicolon separators are not supported.
+
+An enum starts with `enum T[a]:` (or `enum T:` without type parameters).
+The colon stays on the same line as the enum name or closing type bracket.
+A match starts with `expression match`, with `match` on the same line as the
+scrutinee's last token. Both headers must be followed by a newline and at
+least one more-indented `case`. The first case establishes the indentation
+of all sibling cases. Cases on the header's line, unindented cases, and
+brace-delimited bodies are excluded.
+
+```scala
+enum Box[a]:
+  case Wrap(value: a)
+  case Empty()
+
+def unwrap(box: Box[Int]): Int =
+  box match
+    case Wrap(value) => value
+    case Empty() => 0
+```
+
+Value initializers, function bodies, lambda bodies, match-case bodies, and
+`then`/`else` branches each contain exactly one expression. A body can start
+on the introducer's line, or on a later line more indented than the line
+containing its enclosing declaration, lambda, case, or `if`. An indented
+body ends on dedentation. There are no local declarations or sequences of
+expressions in these bodies. Sibling cases and following declarations belong
+to their enclosing region, even after several nested matches dedent at once.
+A `then` or `else` on a new line aligns with the line containing its owning
+`if`; it cannot hang off the last line of an indented condition or branch.
+Commas and closing parentheses/brackets end the expressions enclosed by those
+grammar constructs.
+Explicit markers such as `end match` and `end functionName` are excluded.
+
+A call's opening `(` stays on the same line as its callee's last token.
+After an opening parenthesis or type bracket, ordinary arguments, parameters,
+and types may wrap freely without an indentation requirement. Nested expression
+bodies and case lists still obey their own indentation rules. For example:
+
+```scala
+val result = add(
+  if true then
+    1
+  else
+    2,
+  3
+)
+```
+
+A binary operator stays on the same line as its left operand's last token.
+Its right operand may start on the next line: continuation of an inline body
+must be more indented than the enclosing line; continuation of an indented
+body can align with the body's first line or be deeper. Ordinary expressions
+inside delimiters may wrap freely after a trailing operator. Comment-only
+lines can intervene, but an empty line between an operator and its operand
+is rejected. Leading binary operators are excluded, including inside
+parentheses. These restrictions preserve the existing operator precedence
+and associativity.
+
+```scala
+val sum = 1 +
+  2
+
+def answer(): Int =
+  1 +
+  2
+```
+
+A following parenthesized or unary expression can instead be the program's
+separate final expression. For example, `val value = 7` followed by `-2` at
+column 1 does not subtract from the initializer. A newline never silently
+turns a separate final expression into a call argument or binary continuation.
+Unary `-` and `!` must touch their operands everywhere, without intervening
+whitespace or comments. This uniform rule keeps unary parsing simple and
+avoids Scala's interpretation of a spaced leading operator as an infix
+continuation after a declaration.
+
+```scala
+val negative = -2       // accepted
+val inverted = !true    // accepted
+val grouped = -(1 + 2) // accepted
+val spaced = - 2       // rejected
+val broken = -         // rejected
+  2
+```
 
 ## Type Checking
 

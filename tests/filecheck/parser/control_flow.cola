@@ -7,16 +7,14 @@ val x = if true then 1 else 0
 val y = if 1 < 2 then if true then 10 else 20 else 30
 
 // enum for use in match
-enum Shape {
+enum Shape:
   case Circle(r: Int)
   case Rect(w: Int, h: Int)
-}
 
 // match is a postfix expression on any expression
-val area = Circle(5) match {
+val area = Circle(5) match
   case Circle(r) => r * r
   case Rect(w, h) => w * h
-}
 
 // CHECK: Parsing succeeded.
 // CHECK: ValDecl(x,If(Lit(BoolLit(true),Some(TBool)),Lit(IntLit(1),Some(TInt)),Lit(IntLit(0),Some(TInt)),Some(TInt)),None)

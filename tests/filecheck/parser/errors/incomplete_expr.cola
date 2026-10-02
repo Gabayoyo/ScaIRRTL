@@ -3,7 +3,7 @@
 // A binary operator with no right-hand side is not a valid expression.
 val x = 1 +
 
-// CHECK: {{.*}}incomplete_expr.cola:4:11: Parse error: expected end-of-input
-// CHECK-NEXT: val x = 1 +
-// CHECK-NEXT:           ^
-// CHECK-NEXT: Parsing failed.
+// CHECK:       {{.*}}/incomplete_expr.cola:5:1: Parse error: expected continued operand indented at least 1 spaces
+
+// CHECK:       ^
+// CHECK-NEXT:  Parsing failed.

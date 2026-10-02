@@ -5,9 +5,9 @@
 def add(x: Int, y: Int): Int = x + y
 val bad1 = add(1, 2, 3)
 
-enum Pair {
+enum Pair:
   case MkPair(a: Int, b: Int)
-}
+
 val bad2 = MkPair(1)
 
 // CHECK: Parsing succeeded.

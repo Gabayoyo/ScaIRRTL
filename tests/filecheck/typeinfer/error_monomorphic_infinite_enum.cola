@@ -1,10 +1,12 @@
 // RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
 
-enum Box[a] { case MkBox(value: a) }
+enum Box[a]:
+  case MkBox(value: a)
 val boxed = MkBox(Nil)
-val cyclic = boxed match { case MkBox(xs) => boxed :: xs == xs }
+val cyclic = boxed match
+  case MkBox(xs) => boxed :: xs == xs
 
 // CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic_infinite_enum.cola:5:55-57: Type error: Occurs check failed: infinite type
-// CHECK-NEXT:  {{.*}}/error_monomorphic_infinite_enum.cola:5:61-63: Type error: Occurs check failed: infinite type
+// CHECK-NEXT:  {{.*}}/error_monomorphic_infinite_enum.cola:7:30-32: Type error: Occurs check failed: infinite type
+// CHECK-NEXT:  {{.*}}/error_monomorphic_infinite_enum.cola:7:36-38: Type error: Occurs check failed: infinite type
 // CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), ValDecl(boxed,Construct(MkBox,List(Lit(NilLit,Some(TList(TMeta(2))))),Some(TName(Box,List(TList(TMeta(2)))))),None), ValDecl(cyclic,Match(Var(boxed,Some(TName(Box,List(TList(TMeta(2)))))),List(MatchCase(MkBox,List(xs),BinOp(==,BinOp(::,Var(boxed,Some(TName(Box,List(TList(TMeta(2)))))),Var(xs,Some(TList(TMeta(2)))),Some(TList(TName(Box,List(TList(TMeta(2))))))),Var(xs,Some(TList(TMeta(2)))),Some(TBool)))),Some(TBool)),None)),None)

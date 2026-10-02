@@ -1,0 +1,9 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+enum Box:
+val after = 0
+
+// CHECK:       {{.*}}/layout_enum_empty.cola:4:1: Parse error: expected indentation greater than 0 spaces
+// CHECK-NEXT:  val after = 0
+// CHECK-NEXT:  ^
+// CHECK-NEXT:  Parsing failed.

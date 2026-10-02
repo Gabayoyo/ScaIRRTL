@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+val x = 1 +
+
+  2
+
+// CHECK:       {{.*}}/layout_operator_blank.cola:4:1: Parse error: expected continued operand indented at least 1 spaces
+
+// CHECK:       ^
+// CHECK-NEXT:  Parsing failed.

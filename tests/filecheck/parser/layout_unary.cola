@@ -1,0 +1,15 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+val negative = -2
+val inverted = !true
+val grouped = -(1 + 2)
+val nested = !(!false)
+val multiline = -(
+  1 +
+  2
+)
+val tuple = (-2, !true)
+-2
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  Program(List(ValDecl(negative,UnOp(-,Lit(IntLit(2),Some(TInt)),Some(TInt)),None), ValDecl(inverted,UnOp(!,Lit(BoolLit(true),Some(TBool)),Some(TBool)),None), ValDecl(grouped,UnOp(-,BinOp(+,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TInt)),Some(TInt)),None), ValDecl(nested,UnOp(!,UnOp(!,Lit(BoolLit(false),Some(TBool)),Some(TBool)),Some(TBool)),None), ValDecl(multiline,UnOp(-,BinOp(+,Lit(IntLit(1),Some(TInt)),Lit(IntLit(2),Some(TInt)),Some(TInt)),Some(TInt)),None), ValDecl(tuple,Tuple(List(UnOp(-,Lit(IntLit(2),Some(TInt)),Some(TInt)), UnOp(!,Lit(BoolLit(true),Some(TBool)),Some(TBool))),Some(TTuple(List(TInt, TBool)))),None)),Some(UnOp(-,Lit(IntLit(2),Some(TInt)),Some(TInt))))

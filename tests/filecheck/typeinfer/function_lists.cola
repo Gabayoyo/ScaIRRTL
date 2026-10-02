@@ -1,5 +1,5 @@
 // RUN: choco-opt --dump-ast %s | filecheck %s
-// RUN: choco-opt %s | choco-opt | filecheck %s --check-prefix=IR
+// RUN: choco-opt %s | filecheck %s --check-prefix=IR
 
 def add(x: Int, y: Int): Int = x + y
 def two(f: (Int, Int) => Int): Int = f(1, 2)

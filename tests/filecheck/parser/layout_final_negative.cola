@@ -1,0 +1,7 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+
+val value = 7
+-2
+
+// CHECK: Parsing succeeded.
+// CHECK-NEXT: Program(List(ValDecl(value,Lit(IntLit(7),Some(TInt)),None)),Some(UnOp(-,Lit(IntLit(2),Some(TInt)),Some(TInt))))

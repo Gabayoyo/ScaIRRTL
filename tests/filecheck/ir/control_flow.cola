@@ -3,15 +3,13 @@
 val x = if true then 1 else 0
 val y = if 1 < 2 then if true then 10 else 20 else 30
 
-enum Shape {
+enum Shape:
   case Circle(r: Int)
   case Rect(w: Int, h: Int)
-}
 
-val area = Circle(5) match {
+val area = Circle(5) match
   case Circle(r) => r * r
   case Rect(w, h) => w * h
-}
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0 = "chocola.constant"() <{value = "true"}> : () -> !chocola.bool

@@ -49,7 +49,7 @@ Module dependency chain: `dialects` ← `parser` ← `main`.
 
 ## Key dependencies
 
-- **fastparse 3.1.1** — parser combinator library. Both `Ast.scala` and `Parser.scala` live in `parser/`. The parser uses `NoWhitespace` throughout (whitespace is consumed explicitly via the `ws` rule, which also skips `//` line comments).
+- **fastparse 3.1.1** — parser combinator library. Both `Ast.scala` and `Parser.scala` live in `parser/`. The parser uses `NoWhitespace` throughout; named spacing and layout helpers explicitly control newlines, indentation, and `//` comments.
 - **scair-core 0.0.0-SNAPSHOT** — SCAIR IR framework (SSA-based, MLIR-inspired). Pulled from Sonatype snapshots. The `dialects` module defines the `chocola.*` dialect on top of it; see [docs](https://edin-dal.github.io/scair).
 - **case-app 2.1.0** — command-line argument parsing in `main/`.
 - **mill-scalafix** — scalafix is wired into the `ChocoLaModule` trait and runs via `./mill format`.
@@ -62,7 +62,11 @@ Module dependency chain: `dialects` ← `parser` ← `main`.
 - **`::` (list cons)** is right-associative, implemented via direct recursion in `consExpr`.
 - **Lambda vs tuple disambiguation**: `lambdaExpr` (tried first) requires typed parameters `(x: T, ...) => body`; plain `parenExpr` handles everything else and backtracks on failure.
 - **Constructors vs variables**: uppercase-starting names followed by `(...)` are parsed as `Construct` at the atom level; lowercase names are `Var`.
-- **`match` and `enum` bodies use braces** (`{ case ... }`) to avoid indentation sensitivity in fastparse.
+- **Educational priorities**: accepted ChocoLa layouts must be valid Scala layouts with the same grouping. After compatibility, prioritize a clear implementation students can read and modify; performance and formatting flexibility come later. Keep the explicit precedence layers and small, named layout helpers rather than hiding behavior in clever abstractions.
+- **Indentation-only cases**: `enum T[a]:` and `expression match` introduce newline-delimited, more-indented case lists. Siblings align exactly; braces are rejected. `caseBlock` and its separator leave dedented outer cases untouched, and check the block boundary without consuming trailing trivia.
+- **Expression bodies**: `body` handles inline expressions or a more-indented single expression after `=`, `=>`, `then`, or `else`. Binary precedence rules inherit a contextual `minIndent: Int`. Explicit `using` arguments establish it at body, delimiter, and program boundaries (for example, `expr(using 0)` inside parentheses); owner and case indentation remain explicit arguments. There is no mutable indentation stack. Multiline `else` aligns with its owning `if`; grammar delimiters close nested expressions.
+- **Whitespace**: `inlineSpace` never crosses a newline; `ws` skips blank/comment-only lines and supports LF/CRLF. Arguments and types inside delimiters wrap freely. A call's `(` and a binary operator stay on the line of their preceding expression's last token; `operandSpace` permits trailing-operator continuation without blank lines. Top-level items start on separate lines at column 1. Tabs in code indentation, local statement blocks, and explicit `end` markers are excluded.
+- **Unary operators**: `-` and `!` touch their operands everywhere, without whitespace or comments. `unaryExpr` needs no layout context; this uniform restriction avoids special handling of final unary expressions after declarations.
 - **`Program.expr` is `Option[Expr]`** so files containing only declarations (like `zero.cola`) parse correctly.
 - **Source locations** reuse ScaIR's `scair.ir.Location`. `Expr`, `Decl`, `MatchCase` and `EnumCase` extend `Located`, which mirrors `Operation.location`/`Operation.at` and keeps the location outside the constructor (so `toString`, equality and patterns are unaffected). `parseSource` parses a `SourceInput` (an `IndexedParserInput` that knows its file name and `--split-input-file` line offset), so the parser builds `FileLineColRange`s directly: every node spans its full source text (end column one past the last character, as in MLIR). Nodes are located with `located(...)`, or, for infix/postfix nodes (`BinOp`, `Apply`, `Match`), with `spanning` from the start of their left operand/callee. `diagnostic(location, msg)` prefixes messages with the range in VS Code's terminal-link format (`file:line:col-endCol`, or `file:line:col-endLine.endCol` across lines).
 - **fastparse tuple flattening**: `P[(String, Type)]` is flattened when composed with `~`, so typed-parameter lists are collected via `lambdaParamList: P[List[(String, Type)]]` before being composed further.
@@ -91,18 +95,18 @@ Key invariants:
 
 ## Testing
 
-Tests live in `tests/filecheck/parser/`. Each `.cola` file contains a small program, a `// RUN:` directive that pipes the compiler output through `filecheck`, and `// CHECK:` patterns that assert the expected AST fragment.
+Parser tests live in `tests/filecheck/parser/`; related IR and type-inference regressions live in their sibling directories. Each `.cola` file contains a small program, a `// RUN:` directive that pipes the compiler output through `filecheck`, and `// CHECK:` patterns that assert the expected AST fragment.
 
 ```
-// RUN: chocola-parse %s | filecheck %s
+// RUN: choco-opt --dump-ast %s | filecheck %s
 
 val x = 42
 
 // CHECK: Parsing succeeded.
-// CHECK: ValDecl(x,Lit(IntLit(42)))
+// CHECK: ValDecl(x,Lit(IntLit(42),Some(TInt)),None)
 ```
 
-`chocola-parse` is resolved by `lit` to `out/main/launcher.dest/run` (built by Mill). Run all tests with `./mill filechecks.run`.
+`choco-opt` is resolved by `lit` to `out/opt/launcher.dest/run` (built by Mill). AST dumping also runs type inference, so valid parser fixtures must be well typed. Run all tests with `./mill filechecks.run`.
 
 IR-based tests use complete, exact FileCheck expectations generated with
 [`filecheckize`](https://pypi.org/project/filecheckize/). It helped generate and
@@ -122,20 +126,20 @@ Do not anonymize SSA values or block labels: concrete names make the expected
 IR easier to follow and verify operand wiring. Keep the generated `CHECK-NEXT`
 lines so tests cover the complete operation order and module structure.
 
-For round-trip tests, pipe directly through the compiler again:
-
-```sh
-// RUN: choco-opt %s | choco-opt | filecheck %s
-```
+Frontend tests check ASTs, diagnostics, or IR generated directly from ChocoLa.
+Do not pipe frontend IR through the compiler again: ScaIR's general assembly
+round-trip robustness is outside ChocoLa's responsibility.
 
 Use temporary files only when their contents are reused or compared. New IR
 tests must check the complete output with full lines and chained `CHECK-NEXT`
-expectations, including tests with separate prefixes for lowering or round trips.
+expectations, including tests with separate prefixes for lowering.
 Do not replace these with selected operation names or type fragments.
 
 ChocoLa inputs are parsed as one whole file; `--split-input-file` is for MLIR
 inputs. Keep independent invalid ChocoLa examples in separate `.cola` files
 and use `--parsing-diagnostics` to check their diagnostics with FileCheck.
+Do not add a duplicate `not choco-opt` or `not bash choco-opt` RUN to every
+invalid fixture. Reserve CLI exit-status checks for focused driver tests.
 
 ## CI
 

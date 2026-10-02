@@ -1,0 +1,8 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+val value = ! true
+
+// CHECK:       {{.*}}/layout_unary_spaced_not.cola:3:14: Parse error: expected unary operand adjacent to its operator
+// CHECK-NEXT:  val value = ! true
+// CHECK-NEXT:               ^
+// CHECK-NEXT:  Parsing failed.

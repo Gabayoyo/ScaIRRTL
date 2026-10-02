@@ -1,4 +1,4 @@
-// RUN: choco-opt %s | choco-opt | filecheck %s
+// RUN: choco-opt %s | filecheck %s
 // RUN: choco-opt --passes=convert-choco-to-mlir %s | filecheck %s --check-prefix=LOWER
 
 type Forward = Num

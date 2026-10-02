@@ -1,18 +1,26 @@
 // RUN: choco-opt --dump-ast %s | filecheck %s --check-prefix=AST
-// RUN: choco-opt %s | choco-opt | filecheck %s --check-prefix=IR
+// RUN: choco-opt %s | filecheck %s --check-prefix=IR
 
 type Wrapped = Box[Int]
-enum Box[a] { case MkBox(value: a) }
-enum Tree[a] { case Leaf(value: a) case Node(left: Tree[a], right: Tree[a]) }
-enum First[a] { case MkFirst(next: Second[a]) }
-enum Second[a] { case MkSecond(value: a, next: List[First[a]]) }
-def unwrap[a](b: Box[a]): a = b match { case MkBox(x) => x }
+enum Box[a]:
+  case MkBox(value: a)
+enum Tree[a]:
+  case Leaf(value: a)
+  case Node(left: Tree[a], right: Tree[a])
+enum First[a]:
+  case MkFirst(next: Second[a])
+enum Second[a]:
+  case MkSecond(value: a, next: List[First[a]])
+def unwrap[a](b: Box[a]): a = b match
+  case MkBox(x) => x
 val tree = Node(Leaf(1), Leaf(2))
 val wrapped: Wrapped = MkBox(7)
-val matched = wrapped match { case MkBox(v) => v + 1 }
+val matched = wrapped match
+  case MkBox(v) => v + 1
 val recursive = MkFirst(MkSecond(true, Nil))
 val listBox = MkBox(1 :: Nil)
-val listField = listBox match { case MkBox(xs) => xs }
+val listField = listBox match
+  case MkBox(xs) => xs
 
 // AST:       Parsing succeeded.
 // AST-NEXT:  Program(List(TypeDecl(Wrapped,TName(Box,List(TInt))), EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), EnumDecl(Tree,List(a),List(EnumCase(Leaf,List((value,TName(a,List())))), EnumCase(Node,List((left,TName(Tree,List(TName(a,List())))), (right,TName(Tree,List(TName(a,List())))))))), EnumDecl(First,List(a),List(EnumCase(MkFirst,List((next,TName(Second,List(TName(a,List())))))))), EnumDecl(Second,List(a),List(EnumCase(MkSecond,List((value,TName(a,List())), (next,TList(TName(First,List(TName(a,List()))))))))), DefDecl(unwrap,List(a),List((b,TName(Box,List(TName(a,List()))))),TName(a,List()),Match(Var(b,Some(TName(Box,List(TParam(a,6))))),List(MatchCase(MkBox,List(x),Var(x,Some(TParam(a,6))))),Some(TParam(a,6)))), ValDecl(tree,Construct(Node,List(Construct(Leaf,List(Lit(IntLit(1),Some(TInt))),Some(TName(Tree,List(TInt)))), Construct(Leaf,List(Lit(IntLit(2),Some(TInt))),Some(TName(Tree,List(TInt))))),Some(TName(Tree,List(TInt)))),None), ValDecl(wrapped,Construct(MkBox,List(Lit(IntLit(7),Some(TInt))),Some(TName(Box,List(TInt)))),Some(TName(Wrapped,List()))), ValDecl(matched,Match(Var(wrapped,Some(TName(Box,List(TInt)))),List(MatchCase(MkBox,List(v),BinOp(+,Var(v,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)))),Some(TInt)),None), ValDecl(recursive,Construct(MkFirst,List(Construct(MkSecond,List(Lit(BoolLit(true),Some(TBool)), Lit(NilLit,Some(TList(TName(First,List(TBool)))))),Some(TName(Second,List(TBool))))),Some(TName(First,List(TBool)))),None), ValDecl(listBox,Construct(MkBox,List(BinOp(::,Lit(IntLit(1),Some(TInt)),Lit(NilLit,Some(TList(TInt))),Some(TList(TInt)))),Some(TName(Box,List(TList(TInt))))),None), ValDecl(listField,Match(Var(listBox,Some(TName(Box,List(TList(TInt))))),List(MatchCase(MkBox,List(xs),Var(xs,Some(TList(TInt))))),Some(TList(TInt))),None)),None)

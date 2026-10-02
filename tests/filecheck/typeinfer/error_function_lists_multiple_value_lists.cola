@@ -2,7 +2,7 @@
 
 def wrong(x: Int)(y: Int): Int = x + y
 
-// CHECK:       {{.*}}/error_function_lists_multiple_value_lists.cola:3:1: Parse error: expected end-of-input
+// CHECK:       {{.*}}/error_function_lists_multiple_value_lists.cola:3:18: Parse error: expected ":"
 // CHECK-NEXT:  def wrong(x: Int)(y: Int): Int = x + y
-// CHECK-NEXT:  ^
+// CHECK-NEXT:                   ^
 // CHECK-NEXT:  Parsing failed.

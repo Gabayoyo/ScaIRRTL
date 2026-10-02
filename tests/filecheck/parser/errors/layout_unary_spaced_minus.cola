@@ -1,0 +1,8 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+val value = - 2
+
+// CHECK:       {{.*}}/layout_unary_spaced_minus.cola:3:14: Parse error: expected unary operand adjacent to its operator
+// CHECK-NEXT:  val value = - 2
+// CHECK-NEXT:               ^
+// CHECK-NEXT:  Parsing failed.

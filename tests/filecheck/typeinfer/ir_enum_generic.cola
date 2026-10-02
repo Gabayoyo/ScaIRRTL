@@ -1,13 +1,11 @@
 // RUN: choco-opt %s | filecheck %s
 // Generic match fields and block arguments retain the scrutinee arguments.
 
-enum Box[a] {
+enum Box[a]:
   case MkBox(value: a)
-}
 
-val unwrapped = MkBox(7) match {
+val unwrapped = MkBox(7) match
   case MkBox(v) => v
-}
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    "chocola.enum"() <{sym = @Box, typeParams = [@a]}> ({

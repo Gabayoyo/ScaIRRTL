@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+enum Box:
+  case Wrap(value: Int)
+    case Empty()
+
+// CHECK:       {{.*}}/layout_case_overindent.cola:5:5: Parse error: expected an aligned case, dedentation, or an enclosing delimiter
+// CHECK-NEXT:      case Empty()
+// CHECK-NEXT:      ^
+// CHECK-NEXT:  Parsing failed.

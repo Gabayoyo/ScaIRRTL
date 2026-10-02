@@ -1,0 +1,12 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+val x =
+  if true then
+    1
+   else
+    2
+
+// CHECK:       {{.*}}/layout_else_misaligned.cola:6:4: Parse error: expected indentation of 2 spaces
+// CHECK-NEXT:     else
+// CHECK-NEXT:     ^
+// CHECK-NEXT:  Parsing failed.

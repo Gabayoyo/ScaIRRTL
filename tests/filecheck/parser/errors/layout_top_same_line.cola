@@ -1,0 +1,8 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+val x = 1 val y = 2
+
+// CHECK:       {{.*}}/layout_top_same_line.cola:3:11: Parse error: expected end-of-input
+// CHECK-NEXT:  val x = 1 val y = 2
+// CHECK-NEXT:            ^
+// CHECK-NEXT:  Parsing failed.

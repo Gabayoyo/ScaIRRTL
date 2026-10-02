@@ -1,8 +1,9 @@
 // RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
 
-enum Box[a] { case MkBox(value: a) }
+enum Box[a]:
+  case MkBox(value: a)
 val unused: Box = MkBox(1)
 
 // CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_enum_arguments_missing_arguments.cola:4:1-27: Type error: Type Box expects 1 type arguments, got 0
+// CHECK-NEXT:  {{.*}}/error_enum_arguments_missing_arguments.cola:5:1-27: Type error: Type Box expects 1 type arguments, got 0
 // CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), ValDecl(unused,Construct(MkBox,List(Lit(IntLit(1),Some(TInt))),Some(TName(Box,List(TInt)))),Some(TName(Box,List())))),None)

@@ -1,0 +1,70 @@
+// RUN: cd %S && choco-opt --print-locations indentation.cola | filecheck %s
+
+enum Box:
+  case Wrap(value: Int)
+  case Empty()
+
+def score(box: Box): Int =
+  box match // comments and blank lines stay outside source ranges
+
+    case Wrap(v) =>
+      Wrap(v) match
+        case Wrap(w) =>
+          if w > 0 then
+            w +
+            1 // the expression ends before this comment
+          else
+            0
+        case Empty() => 0
+    case Empty() => 0
+
+val result = score(Wrap(7))
+result
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    "chocola.enum"() <{sym = @Box, typeParams = []}> ({
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Wrap, fields = [#chocola.enum_field<@value, !chocola.int>]}> : () -> () loc("indentation.cola":4:3 to :24)
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Empty, fields = []}> : () -> () loc("indentation.cola":5:3 to :15)
+// CHECK-NEXT:    }) : () -> () loc("indentation.cola":3:1 to 5:15)
+// CHECK-NEXT:    "chocola.func"() <{sym = @score, typeParams = [], functionType = (!chocola.named<@Box, []>) -> !chocola.int}> ({
+// CHECK-NEXT:    ^bb0(%0: !chocola.named<@Box, []>):
+// CHECK-NEXT:      %1 = "chocola.match"(%0) ({
+// CHECK-NEXT:        "chocola.case"() <{ctor = @Wrap}> ({
+// CHECK-NEXT:        ^bb1(%2: !chocola.int):
+// CHECK-NEXT:          %3 = "chocola.construct"(%2) <{ctor = @Wrap}> : (!chocola.int) -> !chocola.named<@Box, []> loc("indentation.cola":11:7 to :14)
+// CHECK-NEXT:          %4 = "chocola.match"(%3) ({
+// CHECK-NEXT:            "chocola.case"() <{ctor = @Wrap}> ({
+// CHECK-NEXT:            ^bb2(%5: !chocola.int):
+// CHECK-NEXT:              %6 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int loc("indentation.cola":13:18 to :19)
+// CHECK-NEXT:              %7 = "chocola.gt"(%5, %6) : (!chocola.int, !chocola.int) -> !chocola.bool loc("indentation.cola":13:14 to :19)
+// CHECK-NEXT:              %8 = "chocola.if"(%7) ({
+// CHECK-NEXT:                %9 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int loc("indentation.cola":15:13 to :14)
+// CHECK-NEXT:                %10 = "chocola.add"(%5, %9) : (!chocola.int, !chocola.int) -> !chocola.int loc("indentation.cola":14:13 to 15:14)
+// CHECK-NEXT:                "chocola.yield"(%10) : (!chocola.int) -> () loc("indentation.cola":14:13 to 15:14)
+// CHECK-NEXT:              }, {
+// CHECK-NEXT:                %9 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int loc("indentation.cola":17:13 to :14)
+// CHECK-NEXT:                "chocola.yield"(%9) : (!chocola.int) -> () loc("indentation.cola":17:13 to :14)
+// CHECK-NEXT:              }) : (!chocola.bool) -> !chocola.int loc("indentation.cola":13:11 to 17:14)
+// CHECK-NEXT:              "chocola.yield"(%8) : (!chocola.int) -> () loc("indentation.cola":13:11 to 17:14)
+// CHECK-NEXT:            }) : () -> () loc("indentation.cola":12:9 to 17:14)
+// CHECK-NEXT:            "chocola.case"() <{ctor = @Empty}> ({
+// CHECK-NEXT:              %5 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int loc("indentation.cola":18:25 to :26)
+// CHECK-NEXT:              "chocola.yield"(%5) : (!chocola.int) -> () loc("indentation.cola":18:25 to :26)
+// CHECK-NEXT:            }) : () -> () loc("indentation.cola":18:9 to :26)
+// CHECK-NEXT:          }) : (!chocola.named<@Box, []>) -> !chocola.int loc("indentation.cola":11:7 to 18:26)
+// CHECK-NEXT:          "chocola.yield"(%4) : (!chocola.int) -> () loc("indentation.cola":11:7 to 18:26)
+// CHECK-NEXT:        }) : () -> () loc("indentation.cola":10:5 to 18:26)
+// CHECK-NEXT:        "chocola.case"() <{ctor = @Empty}> ({
+// CHECK-NEXT:          %2 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int loc("indentation.cola":19:21 to :22)
+// CHECK-NEXT:          "chocola.yield"(%2) : (!chocola.int) -> () loc("indentation.cola":19:21 to :22)
+// CHECK-NEXT:        }) : () -> () loc("indentation.cola":19:5 to :22)
+// CHECK-NEXT:      }) : (!chocola.named<@Box, []>) -> !chocola.int loc("indentation.cola":8:3 to 19:22)
+// CHECK-NEXT:      "chocola.return"(%1) : (!chocola.int) -> () loc("indentation.cola":8:3 to 19:22)
+// CHECK-NEXT:    }) : () -> () loc("indentation.cola":7:1 to 19:22)
+// CHECK-NEXT:    %0 = "chocola.constant"() <{value = "7"}> : () -> !chocola.int loc("indentation.cola":21:25 to :26)
+// CHECK-NEXT:    %1 = "chocola.construct"(%0) <{ctor = @Wrap}> : (!chocola.int) -> !chocola.named<@Box, []> loc("indentation.cola":21:20 to :27)
+// CHECK-NEXT:    %2 = "chocola.direct_call"(%1) <{callee = @score}> : (!chocola.named<@Box, []>) -> !chocola.int loc("indentation.cola":21:14 to :28)
+// CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// CHECK-NEXT:      "chocola.return"(%2) : (!chocola.int) -> () loc("indentation.cola":22:1 to :7)
+// CHECK-NEXT:    }) : () -> () loc("indentation.cola":22:1 to :7)
+// CHECK-NEXT:  } loc(unknown)

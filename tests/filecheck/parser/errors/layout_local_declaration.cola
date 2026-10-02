@@ -1,0 +1,10 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+def answer(): Int =
+  val x = 42
+  x
+
+// CHECK:       {{.*}}/layout_local_declaration.cola:4:3: Parse error: expected (located | postfixExpr)
+// CHECK-NEXT:    val x = 42
+// CHECK-NEXT:    ^
+// CHECK-NEXT:  Parsing failed.

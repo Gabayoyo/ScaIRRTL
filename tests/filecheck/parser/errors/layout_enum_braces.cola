@@ -1,0 +1,8 @@
+// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
+
+enum Box { case Wrap(value: Int) }
+
+// CHECK:       {{.*}}/layout_enum_braces.cola:3:10: Parse error: expected ":"
+// CHECK-NEXT:  enum Box { case Wrap(value: Int) }
+// CHECK-NEXT:           ^
+// CHECK-NEXT:  Parsing failed.
