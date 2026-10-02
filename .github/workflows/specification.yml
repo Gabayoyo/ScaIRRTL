@@ -1,0 +1,31 @@
+name: Specification
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  html:
+    name: Build project documentation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Coursier cache
+      uses: coursier/cache-action@v7
+
+    - name: Build project documentation
+      run: ./mill opt.unidocSite
+
+    - name: Upload HTML site
+      uses: actions/upload-artifact@v4
+      with:
+        name: chocola-specification
+        path: out/opt/unidocSite.dest/
+        if-no-files-found: error

@@ -124,4 +124,5 @@ Both workflows cache `out/` for incremental Mill builds and include a clean-retr
 
 ## Language grammar
 
-The formal grammar is in [parser/syntax.md](parser/syntax.md) (LaTeX BNF). A prose summary is in the [README](README.md).
+The specification is maintained in [docs/_docs/spec.md](docs/_docs/spec.md).
+Build it alongside the whole project's API documentation with `./mill opt.unidocSite`.

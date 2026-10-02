@@ -7,6 +7,7 @@ package build
 import com.goyeau.mill.scalafix.ScalafixModule
 
 import mill.*, scalalib.*
+import mill.api.BuildCtx
 
 object versions:
     val scair = "0.0.0-1-a7b7f7-SNAPSHOT"
@@ -18,6 +19,7 @@ trait ChocoLaModule extends ScalaModule with ScalafixModule:
     override def scalaVersion = versions.scala
 
 object `package` extends ChocoLaModule:
+
     object dialects extends ChocoLaModule:
         override def repositoriesTask = Task.Anon {
             super.repositoriesTask() ++ Seq(
@@ -47,7 +49,24 @@ object `package` extends ChocoLaModule:
         )
         override def moduleDeps = Seq(dialects)
 
-    object opt extends ChocoLaModule:
+    object opt extends ChocoLaModule with UnidocModule:
+        override def docResources = Task.Sources(BuildCtx.workspaceRoot / "docs")
+
+        // Mill's default Unidoc classpath omits this module's own library dependencies.
+        override def unidocCompileClasspath = Task:
+            (super.unidocCompileClasspath() ++ compileClasspath()).distinct
+
+        override def unidocDocumentTitle = "ChocoLa"
+
+        override def unidocSourceUrl = Some("https://github.com/PapyChacal/ChocoLaCompiler/blob/main")
+
+        override def unidocOptions = Task:
+            Seq("-project", unidocDocumentTitle(), "-siteroot", docResources().head.path.toString)
+
+        def unidocUrl() = Task.Command:
+            val index = unidocSite().path / "index.html"
+            println(index.toNIO.toUri.toASCIIString)
+
         override def mvnDeps = Seq(
             mvn"com.github.scopt::scopt::${versions.scopt}"
         )
