@@ -1,0 +1,9 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+enum Box[a] { case MkBox(value: a) }
+def bad[a](x: Box[a]): a = x match { case MkBox() => 0 }
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_enum_arguments_pattern_arity.cola:4:38-55: Type error: Pattern MkBox expects 1 bindings, got 0
+// CHECK-NEXT:  {{.*}}/error_enum_arguments_pattern_arity.cola:4:28-57: Type error: Type mismatch: expected TParam(a,2) but got TInt
+// CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), DefDecl(bad,List(a),List((x,TName(Box,List(TName(a,List()))))),TName(a,List()),Match(Var(x,Some(TName(Box,List(TParam(a,2))))),List(MatchCase(MkBox,List(),Lit(IntLit(0),Some(TInt)))),Some(TInt)))),None)

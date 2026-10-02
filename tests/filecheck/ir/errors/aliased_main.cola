@@ -1,4 +1,4 @@
-// RUN: choco-opt %s 2>&1 | filecheck %s
+// RUN: choco-opt --parsing-diagnostics %s 2>&1 | filecheck %s
 
 type MyInt = Int
 def main(): MyInt = 0

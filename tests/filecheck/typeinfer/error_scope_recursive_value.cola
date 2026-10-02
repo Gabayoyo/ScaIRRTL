@@ -1,0 +1,7 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+val self = self
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_scope_recursive_value.cola:3:12-16: Type error: Unbound variable: self
+// CHECK-NEXT:  Program(List(ValDecl(self,Var(self,Some(TMeta(1))),None)),None)

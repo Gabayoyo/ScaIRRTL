@@ -5,6 +5,6 @@
 val x = 42
 val y = x + 1
 
-// CHECK: ValDecl(x,Lit(IntLit(42),Some(TInt)))
+// CHECK: ValDecl(x,Lit(IntLit(42),Some(TInt)),None)
 // x is in scope with TInt, so Var(x) gets Some(TInt).
-// CHECK: ValDecl(y,BinOp(+,Var(x,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)))
+// CHECK: ValDecl(y,BinOp(+,Var(x,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)),None)

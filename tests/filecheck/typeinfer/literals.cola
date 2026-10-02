@@ -4,12 +4,12 @@ val i = 42
 val d = 3.14
 val s = "hello"
 val b = true
-val n = Nil
+val n: List[Int] = Nil
 
 // Literals get precise primitive types.
 // CHECK: Lit(IntLit(42),Some(TInt))
 // CHECK: Lit(DoubleLit(3.14),Some(TDouble))
 // CHECK: Lit(StrLit(hello),Some(TString))
 // CHECK: Lit(BoolLit(true),Some(TBool))
-// Nil gets TList with unknown element type.
-// CHECK: Lit(NilLit,Some(TList(TName(_))))
+// The explicit annotation determines Nil's element type.
+// CHECK: Lit(NilLit,Some(TList(TInt)))

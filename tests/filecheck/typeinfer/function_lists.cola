@@ -1,0 +1,83 @@
+// RUN: choco-opt --dump-ast %s | filecheck %s
+// RUN: choco-opt %s | choco-opt | filecheck %s --check-prefix=IR
+
+def add(x: Int, y: Int): Int = x + y
+def two(f: (Int, Int) => Int): Int = f(1, 2)
+def tuple(f: ((Int, Int)) => Int): Int = f((1, 2))
+def zero(): Int = 7
+def invoke(f: () => Int): Int = f()
+def makeAdder(x: Int): Int => Int = (y: Int) => x + y
+val multi = two(add)
+val oneTuple = tuple((p: (Int, Int)) => 3)
+val nothing = invoke(zero)
+val emptyLambda = invoke(() => 8)
+val returned = makeAdder(1)(2)
+val rightAssociated: Int => Int => Int = makeAdder
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  Program(List(DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt))), DefDecl(two,List(),List((f,TFun(List(TInt, TInt),TInt))),TInt,Apply(Var(f,Some(TFun(List(TInt, TInt),TInt))),List(Lit(IntLit(1),Some(TInt)), Lit(IntLit(2),Some(TInt))),Some(TInt))), DefDecl(tuple,List(),List((f,TFun(List(TTuple(List(TInt, TInt))),TInt))),TInt,Apply(Var(f,Some(TFun(List(TTuple(List(TInt, TInt))),TInt))),List(Tuple(List(Lit(IntLit(1),Some(TInt)), Lit(IntLit(2),Some(TInt))),Some(TTuple(List(TInt, TInt))))),Some(TInt))), DefDecl(zero,List(),List(),TInt,Lit(IntLit(7),Some(TInt))), DefDecl(invoke,List(),List((f,TFun(List(),TInt))),TInt,Apply(Var(f,Some(TFun(List(),TInt))),List(),Some(TInt))), DefDecl(makeAdder,List(),List((x,TInt)),TFun(List(TInt),TInt),Lambda(List((y,TInt)),BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt)),Some(TFun(List(TInt),TInt)))), ValDecl(multi,Apply(Var(two,Some(TFun(List(TFun(List(TInt, TInt),TInt)),TInt))),List(Var(add,Some(TFun(List(TInt, TInt),TInt)))),Some(TInt)),None), ValDecl(oneTuple,Apply(Var(tuple,Some(TFun(List(TFun(List(TTuple(List(TInt, TInt))),TInt)),TInt))),List(Lambda(List((p,TTuple(List(TInt, TInt)))),Lit(IntLit(3),Some(TInt)),Some(TFun(List(TTuple(List(TInt, TInt))),TInt)))),Some(TInt)),None), ValDecl(nothing,Apply(Var(invoke,Some(TFun(List(TFun(List(),TInt)),TInt))),List(Var(zero,Some(TFun(List(),TInt)))),Some(TInt)),None), ValDecl(emptyLambda,Apply(Var(invoke,Some(TFun(List(TFun(List(),TInt)),TInt))),List(Lambda(List(),Lit(IntLit(8),Some(TInt)),Some(TFun(List(),TInt)))),Some(TInt)),None), ValDecl(returned,Apply(Apply(Var(makeAdder,Some(TFun(List(TInt),TFun(List(TInt),TInt)))),List(Lit(IntLit(1),Some(TInt))),Some(TFun(List(TInt),TInt))),List(Lit(IntLit(2),Some(TInt))),Some(TInt)),None), ValDecl(rightAssociated,Var(makeAdder,Some(TFun(List(TInt),TFun(List(TInt),TInt)))),Some(TFun(List(TInt),TFun(List(TInt),TInt))))),None)
+
+// IR:       builtin.module {
+// IR-NEXT:    "chocola.func"() <{sym = @add, typeParams = [], functionType = (!chocola.int, !chocola.int) -> !chocola.int}> ({
+// IR-NEXT:    ^bb0(%0: !chocola.int, %1: !chocola.int):
+// IR-NEXT:      %2 = "chocola.add"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
+// IR-NEXT:      "chocola.return"(%2) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    "chocola.func"() <{sym = @two, typeParams = [], functionType = (!chocola.fun<[!chocola.int, !chocola.int], !chocola.int>) -> !chocola.int}> ({
+// IR-NEXT:    ^bb0(%0: !chocola.fun<[!chocola.int, !chocola.int], !chocola.int>):
+// IR-NEXT:      %1 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// IR-NEXT:      %2 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// IR-NEXT:      %3 = "chocola.call"(%0, %1, %2) : (!chocola.fun<[!chocola.int, !chocola.int], !chocola.int>, !chocola.int, !chocola.int) -> !chocola.int
+// IR-NEXT:      "chocola.return"(%3) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    "chocola.func"() <{sym = @tuple, typeParams = [], functionType = (!chocola.fun<[!chocola.tuple<!chocola.int, !chocola.int>], !chocola.int>) -> !chocola.int}> ({
+// IR-NEXT:    ^bb0(%0: !chocola.fun<[!chocola.tuple<!chocola.int, !chocola.int>], !chocola.int>):
+// IR-NEXT:      %1 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// IR-NEXT:      %2 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// IR-NEXT:      %3 = "chocola.tuple"(%1, %2) : (!chocola.int, !chocola.int) -> !chocola.tuple<!chocola.int, !chocola.int>
+// IR-NEXT:      %4 = "chocola.call"(%0, %3) : (!chocola.fun<[!chocola.tuple<!chocola.int, !chocola.int>], !chocola.int>, !chocola.tuple<!chocola.int, !chocola.int>) -> !chocola.int
+// IR-NEXT:      "chocola.return"(%4) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    "chocola.func"() <{sym = @zero, typeParams = [], functionType = () -> !chocola.int}> ({
+// IR-NEXT:      %0 = "chocola.constant"() <{value = "7"}> : () -> !chocola.int
+// IR-NEXT:      "chocola.return"(%0) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    "chocola.func"() <{sym = @invoke, typeParams = [], functionType = (!chocola.fun<[], !chocola.int>) -> !chocola.int}> ({
+// IR-NEXT:    ^bb0(%0: !chocola.fun<[], !chocola.int>):
+// IR-NEXT:      %1 = "chocola.call"(%0) : (!chocola.fun<[], !chocola.int>) -> !chocola.int
+// IR-NEXT:      "chocola.return"(%1) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    "chocola.func"() <{sym = @makeAdder, typeParams = [], functionType = (!chocola.int) -> !chocola.fun<[!chocola.int], !chocola.int>}> ({
+// IR-NEXT:    ^bb0(%0: !chocola.int):
+// IR-NEXT:      %1 = "chocola.lambda"() ({
+// IR-NEXT:      ^bb1(%2: !chocola.int):
+// IR-NEXT:        %3 = "chocola.add"(%0, %2) : (!chocola.int, !chocola.int) -> !chocola.int
+// IR-NEXT:        "chocola.yield"(%3) : (!chocola.int) -> ()
+// IR-NEXT:      }) : () -> !chocola.fun<[!chocola.int], !chocola.int>
+// IR-NEXT:      "chocola.return"(%1) : (!chocola.fun<[!chocola.int], !chocola.int>) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:    %0 = "chocola.function_ref"() <{function = @add}> : () -> !chocola.fun<[!chocola.int, !chocola.int], !chocola.int>
+// IR-NEXT:    %1 = "chocola.direct_call"(%0) <{callee = @two}> : (!chocola.fun<[!chocola.int, !chocola.int], !chocola.int>) -> !chocola.int
+// IR-NEXT:    %2 = "chocola.lambda"() ({
+// IR-NEXT:    ^bb0(%3: !chocola.tuple<!chocola.int, !chocola.int>):
+// IR-NEXT:      %4 = "chocola.constant"() <{value = "3"}> : () -> !chocola.int
+// IR-NEXT:      "chocola.yield"(%4) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> !chocola.fun<[!chocola.tuple<!chocola.int, !chocola.int>], !chocola.int>
+// IR-NEXT:    %3 = "chocola.direct_call"(%2) <{callee = @tuple}> : (!chocola.fun<[!chocola.tuple<!chocola.int, !chocola.int>], !chocola.int>) -> !chocola.int
+// IR-NEXT:    %4 = "chocola.function_ref"() <{function = @zero}> : () -> !chocola.fun<[], !chocola.int>
+// IR-NEXT:    %5 = "chocola.direct_call"(%4) <{callee = @invoke}> : (!chocola.fun<[], !chocola.int>) -> !chocola.int
+// IR-NEXT:    %6 = "chocola.lambda"() ({
+// IR-NEXT:      %7 = "chocola.constant"() <{value = "8"}> : () -> !chocola.int
+// IR-NEXT:      "chocola.yield"(%7) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> !chocola.fun<[], !chocola.int>
+// IR-NEXT:    %7 = "chocola.direct_call"(%6) <{callee = @invoke}> : (!chocola.fun<[], !chocola.int>) -> !chocola.int
+// IR-NEXT:    %8 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int
+// IR-NEXT:    %9 = "chocola.direct_call"(%8) <{callee = @makeAdder}> : (!chocola.int) -> !chocola.fun<[!chocola.int], !chocola.int>
+// IR-NEXT:    %10 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int
+// IR-NEXT:    %11 = "chocola.call"(%9, %10) : (!chocola.fun<[!chocola.int], !chocola.int>, !chocola.int) -> !chocola.int
+// IR-NEXT:    %12 = "chocola.function_ref"() <{function = @makeAdder}> : () -> !chocola.fun<[!chocola.int], !chocola.fun<[!chocola.int], !chocola.int>>
+// IR-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
+// IR-NEXT:      %13 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
+// IR-NEXT:      "chocola.return"(%13) : (!chocola.int) -> ()
+// IR-NEXT:    }) : () -> ()
+// IR-NEXT:  }

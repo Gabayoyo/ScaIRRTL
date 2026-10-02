@@ -29,8 +29,8 @@ if area(Rect(2, 3)) > 5 then area(Circle(2)) else 0
 // CHECK-NEXT:      "chocola.enum_case"() <{sym = @Circle, fields = [#chocola.enum_field<@r, !chocola.int>]}> : () -> () loc("locations.cola":6:3 to :22)
 // CHECK-NEXT:      "chocola.enum_case"() <{sym = @Rect, fields = [#chocola.enum_field<@w, !chocola.int>, #chocola.enum_field<@h, !chocola.int>]}> : () -> () loc("locations.cola":7:3 to :28)
 // CHECK-NEXT:    }) : () -> () loc("locations.cola":5:1 to 8:2)
-// CHECK-NEXT:    "chocola.func"() <{sym = @area, typeParams = [], functionType = (!chocola.named<@Shape>) -> !chocola.int}> ({
-// CHECK-NEXT:    ^bb0(%0: !chocola.named<@Shape>):
+// CHECK-NEXT:    "chocola.func"() <{sym = @area, typeParams = [], functionType = (!chocola.named<@Shape, []>) -> !chocola.int}> ({
+// CHECK-NEXT:    ^bb0(%0: !chocola.named<@Shape, []>):
 // CHECK-NEXT:      %1 = "chocola.match"(%0) ({
 // CHECK-NEXT:        "chocola.case"() <{ctor = @Circle}> ({
 // CHECK-NEXT:        ^bb1(%2: !chocola.int):
@@ -42,7 +42,7 @@ if area(Rect(2, 3)) > 5 then area(Circle(2)) else 0
 // CHECK-NEXT:          %4 = "chocola.mul"(%2, %3) : (!chocola.int, !chocola.int) -> !chocola.int loc("locations.cola":12:22 to :27)
 // CHECK-NEXT:          "chocola.yield"(%4) : (!chocola.int) -> () loc("locations.cola":12:22 to :27)
 // CHECK-NEXT:        }) : () -> () loc("locations.cola":12:3 to :27)
-// CHECK-NEXT:      }) : (!chocola.named<@Shape>) -> !chocola.int loc("locations.cola":10:27 to 13:2)
+// CHECK-NEXT:      }) : (!chocola.named<@Shape, []>) -> !chocola.int loc("locations.cola":10:27 to 13:2)
 // CHECK-NEXT:      "chocola.return"(%1) : (!chocola.int) -> () loc("locations.cola":10:27 to 13:2)
 // CHECK-NEXT:    }) : () -> () loc("locations.cola":10:1 to 13:2)
 // CHECK-NEXT:    %0 = "chocola.lambda"() ({
@@ -50,21 +50,21 @@ if area(Rect(2, 3)) > 5 then area(Circle(2)) else 0
 // CHECK-NEXT:      %2 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int loc("locations.cola":15:27 to :28)
 // CHECK-NEXT:      %3 = "chocola.add"(%1, %2) : (!chocola.int, !chocola.int) -> !chocola.int loc("locations.cola":15:23 to :28)
 // CHECK-NEXT:      "chocola.yield"(%3) : (!chocola.int) -> () loc("locations.cola":15:23 to :28)
-// CHECK-NEXT:    }) : () -> !chocola.fun<!chocola.int, !chocola.int> loc("locations.cola":15:11 to :28)
+// CHECK-NEXT:    }) : () -> !chocola.fun<[!chocola.int], !chocola.int> loc("locations.cola":15:11 to :28)
 // CHECK-NEXT:    %1 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int loc("locations.cola":16:18 to :19)
 // CHECK-NEXT:    %2 = "chocola.neg"(%1) : (!chocola.int) -> !chocola.int loc("locations.cola":16:17 to :19)
-// CHECK-NEXT:    %3 = "chocola.call"(%0, %2) : (!chocola.fun<!chocola.int, !chocola.int>, !chocola.int) -> !chocola.int loc("locations.cola":16:13 to :20)
+// CHECK-NEXT:    %3 = "chocola.call"(%0, %2) : (!chocola.fun<[!chocola.int], !chocola.int>, !chocola.int) -> !chocola.int loc("locations.cola":16:13 to :20)
 // CHECK-NEXT:    %4 = "chocola.constant"() <{value = "true"}> : () -> !chocola.bool loc("locations.cola":16:23 to :27)
 // CHECK-NEXT:    %5 = "chocola.not"(%4) : (!chocola.bool) -> !chocola.bool loc("locations.cola":16:22 to :27)
 // CHECK-NEXT:    %6 = "chocola.tuple"(%3, %5) : (!chocola.int, !chocola.bool) -> !chocola.tuple<!chocola.int, !chocola.bool> loc("locations.cola":16:12 to :28)
-// CHECK-NEXT:    "chocola.func"() <{sym = @add, typeParams = [], functionType = (!chocola.int) -> !chocola.fun<!chocola.int, !chocola.int>}> ({
+// CHECK-NEXT:    "chocola.func"() <{sym = @add, typeParams = [], functionType = (!chocola.int) -> !chocola.fun<[!chocola.int], !chocola.int>}> ({
 // CHECK-NEXT:    ^bb0(%7: !chocola.int):
 // CHECK-NEXT:      %8 = "chocola.lambda"() ({
 // CHECK-NEXT:      ^bb1(%9: !chocola.int):
 // CHECK-NEXT:        %10 = "chocola.add"(%7, %9) : (!chocola.int, !chocola.int) -> !chocola.int loc("locations.cola":18:43 to :48)
 // CHECK-NEXT:        "chocola.yield"(%10) : (!chocola.int) -> () loc("locations.cola":18:43 to :48)
-// CHECK-NEXT:      }) : () -> !chocola.fun<!chocola.int, !chocola.int> loc("locations.cola":18:31 to :48)
-// CHECK-NEXT:      "chocola.return"(%8) : (!chocola.fun<!chocola.int, !chocola.int>) -> () loc("locations.cola":18:31 to :48)
+// CHECK-NEXT:      }) : () -> !chocola.fun<[!chocola.int], !chocola.int> loc("locations.cola":18:31 to :48)
+// CHECK-NEXT:      "chocola.return"(%8) : (!chocola.fun<[!chocola.int], !chocola.int>) -> () loc("locations.cola":18:31 to :48)
 // CHECK-NEXT:    }) : () -> () loc("locations.cola":18:1 to :48)
 // CHECK-NEXT:    %7 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int loc("locations.cola":20:13 to :14)
 // CHECK-NEXT:    %8 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int loc("locations.cola":20:17 to :18)
@@ -79,20 +79,20 @@ if area(Rect(2, 3)) > 5 then area(Circle(2)) else 0
 // CHECK-NEXT:    %17 = "chocola.cons"(%15, %16) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int> loc("locations.cola":21:17 to :25)
 // CHECK-NEXT:    %18 = "chocola.cons"(%14, %17) : (!chocola.int, !chocola.list<!chocola.int>) -> !chocola.list<!chocola.int> loc("locations.cola":21:12 to :25)
 // CHECK-NEXT:    %19 = "chocola.constant"() <{value = "1"}> : () -> !chocola.int loc("locations.cola":22:19 to :20)
-// CHECK-NEXT:    %20 = "chocola.direct_call"(%19) <{callee = @add}> : (!chocola.int) -> !chocola.fun<!chocola.int, !chocola.int> loc("locations.cola":22:15 to :21)
+// CHECK-NEXT:    %20 = "chocola.direct_call"(%19) <{callee = @add}> : (!chocola.int) -> !chocola.fun<[!chocola.int], !chocola.int> loc("locations.cola":22:15 to :21)
 // CHECK-NEXT:    %21 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int loc("locations.cola":22:22 to :23)
-// CHECK-NEXT:    %22 = "chocola.call"(%20, %21) : (!chocola.fun<!chocola.int, !chocola.int>, !chocola.int) -> !chocola.int loc("locations.cola":22:15 to :24)
+// CHECK-NEXT:    %22 = "chocola.call"(%20, %21) : (!chocola.fun<[!chocola.int], !chocola.int>, !chocola.int) -> !chocola.int loc("locations.cola":22:15 to :24)
 // CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
 // CHECK-NEXT:      %23 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int loc("locations.cola":24:14 to :15)
 // CHECK-NEXT:      %24 = "chocola.constant"() <{value = "3"}> : () -> !chocola.int loc("locations.cola":24:17 to :18)
-// CHECK-NEXT:      %25 = "chocola.construct"(%23, %24) <{ctor = @Rect}> : (!chocola.int, !chocola.int) -> !chocola.named<@Shape> loc("locations.cola":24:9 to :19)
-// CHECK-NEXT:      %26 = "chocola.direct_call"(%25) <{callee = @area}> : (!chocola.named<@Shape>) -> !chocola.int loc("locations.cola":24:4 to :20)
+// CHECK-NEXT:      %25 = "chocola.construct"(%23, %24) <{ctor = @Rect}> : (!chocola.int, !chocola.int) -> !chocola.named<@Shape, []> loc("locations.cola":24:9 to :19)
+// CHECK-NEXT:      %26 = "chocola.direct_call"(%25) <{callee = @area}> : (!chocola.named<@Shape, []>) -> !chocola.int loc("locations.cola":24:4 to :20)
 // CHECK-NEXT:      %27 = "chocola.constant"() <{value = "5"}> : () -> !chocola.int loc("locations.cola":24:23 to :24)
 // CHECK-NEXT:      %28 = "chocola.gt"(%26, %27) : (!chocola.int, !chocola.int) -> !chocola.bool loc("locations.cola":24:4 to :24)
 // CHECK-NEXT:      %29 = "chocola.if"(%28) ({
 // CHECK-NEXT:        %30 = "chocola.constant"() <{value = "2"}> : () -> !chocola.int loc("locations.cola":24:42 to :43)
-// CHECK-NEXT:        %31 = "chocola.construct"(%30) <{ctor = @Circle}> : (!chocola.int) -> !chocola.named<@Shape> loc("locations.cola":24:35 to :44)
-// CHECK-NEXT:        %32 = "chocola.direct_call"(%31) <{callee = @area}> : (!chocola.named<@Shape>) -> !chocola.int loc("locations.cola":24:30 to :45)
+// CHECK-NEXT:        %31 = "chocola.construct"(%30) <{ctor = @Circle}> : (!chocola.int) -> !chocola.named<@Shape, []> loc("locations.cola":24:35 to :44)
+// CHECK-NEXT:        %32 = "chocola.direct_call"(%31) <{callee = @area}> : (!chocola.named<@Shape, []>) -> !chocola.int loc("locations.cola":24:30 to :45)
 // CHECK-NEXT:        "chocola.yield"(%32) : (!chocola.int) -> () loc("locations.cola":24:30 to :45)
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:        %30 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int loc("locations.cola":24:51 to :52)

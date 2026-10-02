@@ -109,22 +109,39 @@ def literal[$: P]: P[Literal] =
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-// Function type T1 => T2 is right-associative.
+// The parentheses immediately before an arrow describe its parameter list.
+// Trying this before simpleType preserves a tuple wrapped in another pair.
 def typeExpr[$: P]: P[Type] =
-  P(simpleType ~ (ws ~ "=>" ~ ws ~ typeExpr).?).map {
-    case (t, None)    => t
-    case (t, Some(r)) => TFun(t, r)
+  P(
+    ("(" ~ ws ~ typeList ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ typeExpr)
+      .map((ps, r) => TFun(ps, r)) |
+      (simpleType ~ (ws ~ "=>" ~ ws ~ typeExpr).?).map {
+        case (t, None)    => t
+        case (t, Some(r)) => TFun(List(t), r)
+      }
+  )
+
+def typeList[$: P]: P[List[Type]] =
+  P((typeExpr ~ (ws ~ "," ~ ws ~ typeExpr).rep).?).map {
+    case None         => Nil
+    case Some((h, t)) => h :: t.toList
   }
 
 def simpleType[$: P]: P[Type] =
   P(
-    kw("Int").map(_ => TInt) | kw("Double").map(_ => TDouble) | kw("String")
-      .map(_ => TString) | kw("Bool").map(_ => TBool) |
-      (kw("List") ~ ws ~ "[" ~ ws ~ typeExpr ~ ws ~ "]").map(TList(_)) |
-      parenType | upperIdent.map(TName(_)) | lowerIdent.map(TName(_))
+    parenType |
+      ((upperIdent | lowerIdent) ~ (ws ~ "[" ~ ws ~ typeList ~ ws ~ "]").?)
+        .map { (n, args) =>
+          (n, args.getOrElse(Nil)) match
+            case ("Int", Nil)         => TInt
+            case ("Double", Nil)      => TDouble
+            case ("String", Nil)      => TString
+            case ("Bool", Nil)        => TBool
+            case ("List", List(elem)) => TList(elem)
+            case (_, ts)              => TName(n, ts)
+        }
   )
 
-// A single type in parens is a grouping; multiple are a tuple.
 def parenType[$: P]: P[Type] =
   P("(" ~ ws ~ typeExpr ~ (ws ~ "," ~ ws ~ typeExpr).rep ~ ws ~ ")").map {
     case (t, rest) if rest.isEmpty => t
@@ -252,8 +269,8 @@ def lambdaParamList[$: P]: P[List[(String, Type)]] =
 
 // Lambda: (x: T, ...) => body. Tried before parenExpr; backtracks on failure.
 def lambdaExpr[$: P]: P[Expr] =
-  P("(" ~ ws ~ lambdaParamList ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ expr).map {
-    case (params, body) => Lambda(params, body)
+  P("(" ~ ws ~ lambdaParamList.? ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ expr).map {
+    case (params, body) => Lambda(params.getOrElse(Nil), body)
   }
 
 // Parenthesised expression or tuple (single element is just grouping, and
@@ -286,8 +303,10 @@ def decl[$: P]: P[Decl] =
   P(ws ~ located(enumDecl | defDecl | typeDecl | valDecl))
 
 def valDecl[$: P]: P[Decl] =
-  P(kw("val") ~/ ws ~ lowerIdent.opaque("variable name") ~ ws ~ "=" ~ ws ~ expr)
-    .map(ValDecl(_, _))
+  P(
+    kw("val") ~/ ws ~ lowerIdent.opaque("variable name") ~
+      (ws ~ ":" ~ ws ~ typeExpr).? ~ ws ~ "=" ~ ws ~ expr
+  ).map((name, annotation, body) => ValDecl(name, body, annotation))
 
 def typeDecl[$: P]: P[Decl] =
   P(kw("type") ~ ws ~ upperIdent ~ ws ~ "=" ~ ws ~ typeExpr).map(TypeDecl(_, _))

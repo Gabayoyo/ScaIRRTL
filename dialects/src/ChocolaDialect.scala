@@ -38,14 +38,15 @@ final case class ListType(element: ChocolaType)
     extends DerivedAttribute["chocola.list"]
     with ChocolaType derives AttrDefs
 
-final case class FunType(from: ChocolaType, to: ChocolaType)
-    extends DerivedAttribute["chocola.fun"]
+final case class FunType(
+    params: ArrayAttribute[ChocolaType],
+    result: ChocolaType,
+) extends DerivedAttribute["chocola.fun"]
     with ChocolaType derives AttrDefs
 
-/** Work around a ScaIR derived-attribute printing bug: the generated parser
-  * treats an ArrayAttribute parameter as a flattened comma-separated list, but
-  * the default printer includes the array's square brackets. Keep this custom
-  * printer until ScaIR's generated printer and parser agree.
+/** Keep the existing flattened tuple assembly spelling. Its custom parser
+  * complements the printing workaround instead of relying on ScaIR's default
+  * derived parser, which expects an ArrayAttribute in square brackets.
   */
 final case class TupleType(elements: ArrayAttribute[ChocolaType])
     extends DerivedAttribute["chocola.tuple"]
@@ -59,8 +60,26 @@ final case class TupleType(elements: ArrayAttribute[ChocolaType])
     }
     p.print(">")
 
-final case class NamedType(symbol: SymbolRefAttr)
-    extends DerivedAttribute["chocola.named"]
+object TupleType:
+
+  given AttributeCustomParser[TupleType] with
+
+    def parse[$: fastparse.P](using
+        scair.parse.Parser
+    ): fastparse.P[TupleType] =
+      import fastparse.*
+      import scair.parse.attributeP
+      P(
+        "<" ~ attributeP.filter(_.isInstanceOf[ChocolaType]).rep(sep = ",") ~
+          ">"
+      ).map(es =>
+        TupleType(ArrayAttribute(es.map(_.asInstanceOf[ChocolaType])*))
+      )
+
+final case class NamedType(
+    symbol: SymbolRefAttr,
+    args: ArrayAttribute[ChocolaType],
+) extends DerivedAttribute["chocola.named"]
     with ChocolaType derives AttrDefs
 
 /** A named field and its structured type within an enum case declaration. */

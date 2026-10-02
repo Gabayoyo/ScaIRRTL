@@ -5,12 +5,12 @@ val d = 3.14
 val s = "hello"
 val t = true
 val f = false
-val n = Nil
+val n: List[Int] = Nil
 
 // CHECK: Parsing succeeded.
-// CHECK: ValDecl(i,Lit(IntLit(42),Some(TInt)))
-// CHECK: ValDecl(d,Lit(DoubleLit(3.14),Some(TDouble)))
-// CHECK: ValDecl(s,Lit(StrLit(hello),Some(TString)))
-// CHECK: ValDecl(t,Lit(BoolLit(true),Some(TBool)))
-// CHECK: ValDecl(f,Lit(BoolLit(false),Some(TBool)))
-// CHECK: ValDecl(n,Lit(NilLit,Some(TList(TName(_)))))
+// CHECK: ValDecl(i,Lit(IntLit(42),Some(TInt)),None)
+// CHECK: ValDecl(d,Lit(DoubleLit(3.14),Some(TDouble)),None)
+// CHECK: ValDecl(s,Lit(StrLit(hello),Some(TString)),None)
+// CHECK: ValDecl(t,Lit(BoolLit(true),Some(TBool)),None)
+// CHECK: ValDecl(f,Lit(BoolLit(false),Some(TBool)),None)
+// CHECK: ValDecl(n,Lit(NilLit,Some(TList(TInt))),Some(TList(TInt)))

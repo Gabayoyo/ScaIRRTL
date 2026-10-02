@@ -1,0 +1,8 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+enum Box[a] { case MkBox(value: a) }
+type Loop = Box[Loop]
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_declarations_enum_argument_cycle.cola:4:1-22: Type error: Cyclic type alias: Loop
+// CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), TypeDecl(Loop,TName(Box,List(TName(Loop,List()))))),None)

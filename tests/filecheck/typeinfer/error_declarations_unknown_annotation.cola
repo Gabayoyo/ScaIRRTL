@@ -1,0 +1,7 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+val unused: Missing = 0
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_declarations_unknown_annotation.cola:3:1-24: Type error: Unknown type: Missing
+// CHECK-NEXT:  Program(List(ValDecl(unused,Lit(IntLit(0),Some(TInt)),Some(TName(Missing,List())))),None)

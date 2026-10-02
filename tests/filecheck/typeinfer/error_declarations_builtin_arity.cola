@@ -1,0 +1,7 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+type Bad = Int[Bool]
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_declarations_builtin_arity.cola:3:1-21: Type error: Type Int expects 0 type arguments, got 1
+// CHECK-NEXT:  Program(List(TypeDecl(Bad,TName(Int,List(TBool)))),None)

@@ -26,8 +26,8 @@ def poly[a](x: a): a = x
 // CHECK: DefDecl(useDouble,List(),List((x,TDouble)),TDouble,Var(x,Some(TDouble)))
 // CHECK: DefDecl(useString,List(),List((x,TString)),TString,Var(x,Some(TString)))
 // CHECK: DefDecl(useList,List(),List((xs,TList(TInt))),TList(TInt),Var(xs,Some(TList(TInt))))
-// CHECK: DefDecl(higherOrder,List(),List((f,TFun(TInt,TInt))),TInt,Apply(Var(f,Some(TFun(TInt,TInt))),List(Lit(IntLit(0),Some(TInt))),Some(TInt)))
-// CHECK: DefDecl(curried,List(),List((f,TFun(TInt,TFun(TInt,TInt)))),TInt
+// CHECK: DefDecl(higherOrder,List(),List((f,TFun(List(TInt),TInt))),TInt,Apply(Var(f,Some(TFun(List(TInt),TInt))),List(Lit(IntLit(0),Some(TInt))),Some(TInt)))
+// CHECK: DefDecl(curried,List(),List((f,TFun(List(TInt),TFun(List(TInt),TInt)))),TInt,Apply(Apply(Var(f,Some(TFun(List(TInt),TFun(List(TInt),TInt)))),List(Lit(IntLit(1),Some(TInt))),Some(TFun(List(TInt),TInt))),List(Lit(IntLit(2),Some(TInt))),Some(TInt)))
 // CHECK: DefDecl(usePair,List(),List((p,TTuple(List(TInt, TBool)))),TInt,Lit(IntLit(0),Some(TInt)))
 // CHECK: TypeDecl(Alias,TInt)
-// CHECK: DefDecl(poly,List(a),List((x,TName(a))),TName(a),Var(x,Some(TName(a))))
+// CHECK: DefDecl(poly,List(a),List((x,TName(a,List()))),TName(a,List()),Var(x,Some(TParam(a,10))))

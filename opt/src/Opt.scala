@@ -2,7 +2,6 @@ package chocola.main
 
 import chocola.dialects.ChocolaDialect
 import chocola.lowering.allPasses as chocolaPasses
-import chocola.parser.Program
 import chocola.parser.SourceError
 import chocola.parser.TypeError
 import chocola.parser.TypeInferencer
@@ -66,38 +65,38 @@ object Main:
     if splitInputFile then input.mkString.split("\n// -----\n")
     else Array(input.mkString)
 
-  /** Parse each chunk of a ChocoLa input, locating it in the input file. */
-  private def parseChocolaChunks(
-      args: ChocoOptArgs,
-      input: BufferedSource,
-  ): Array[Either[String, Program]] =
-    val chunks = inputChunks(input, args.splitInputFile)
-    // Each `// -----` separator removes two newlines from the line count.
-    val lineOffsets = chunks
-      .scanLeft(0)((offset, chunk) => offset + chunk.count(_ == '\n') + 2)
-    val file = args.input.getOrElse("-")
-    chunks.zip(lineOffsets)
-      .map((chunk, offset) => parseSource(chunk, file, offset))
+  private def reportTypeErrors(
+      errors: List[TypeError],
+      diagnostics: Boolean,
+  ): Unit =
+    errors.foreach { error =>
+      val message = diagnostic(error.location, s"Type error: ${error.msg}")
+      if diagnostics then println(message) else Console.err.println(message)
+    }
 
-  private def reportTypeErrors(errors: List[TypeError]): Unit =
-    errors.foreach(error =>
-      Console.err
-        .println(diagnostic(error.location, s"Type error: ${error.msg}"))
-    )
+  /** Diagnostic mode reports errors as output; compilation stops on errors. */
+  private def handleParsingError(error: String, args: ChocoOptArgs): Unit =
+    if args.parsingDiagnostics then println(error)
+    else throw Exception(error)
 
   private def parseChocola(
       args: ChocoOptArgs,
       input: BufferedSource,
   ): Array[OK[Operation]] =
-    parseChocolaChunks(args, input).map {
+    Array(parseSource(input.mkString, args.input.getOrElse("-")) match
       case Right(ast) =>
-        reportTypeErrors(TypeInferencer().inferProgram(ast))
-        try OK(generateProgram(ast): Operation)
-        catch
-          case SourceError(msg, location) =>
-            Err(diagnostic(location, s"error: $msg")): OK[Operation]
-      case Left(error) => Err(error): OK[Operation]
-    }
+        val errors = TypeInferencer().inferProgram(ast)
+        if errors.nonEmpty then
+          Err(
+            errors.map(e => diagnostic(e.location, s"Type error: ${e.msg}"))
+              .mkString("\n")
+          ): OK[Operation]
+        else
+          try OK(generateProgram(ast): Operation)
+          catch
+            case SourceError(msg, location) =>
+              Err(diagnostic(location, s"error: $msg")): OK[Operation]
+      case Left(error) => Err(error): OK[Operation])
 
   private def parseMlir(
       args: ChocoOptArgs
@@ -145,8 +144,9 @@ object Main:
         opt[Unit]('s', "skip-verify").optional().text("Skip verification")
           .action((_, c) => c.copy(skipVerify = true)),
         opt[Unit]("split-input-file").optional()
-          .text("Split input file on `// -----`")
-          .action((_, c) => c.copy(splitInputFile = true)),
+          .text(
+            "Split MLIR input on `// -----` (ChocoLa files are parsed whole)"
+          ).action((_, c) => c.copy(splitInputFile = true)),
         opt[Unit]("parsing-diagnostics").optional().text(
           "Parsing diagnose mode, i.e parse errors are not fatal for the whole run"
         ).action((_, c) => c.copy(parsingDiagnostics = true)),
@@ -185,18 +185,17 @@ object Main:
     if !args.input.exists(_.endsWith(".cola")) then
       throw IllegalArgumentException("--dump-ast requires a .cola input file")
 
-    val chunks = parseChocolaChunks(args, input)
-    chunks.zipWithIndex.foreach { case (parsed, index) =>
-      parsed match
-        case Right(ast) =>
-          println("Parsing succeeded.")
-          reportTypeErrors(TypeInferencer().inferProgram(ast))
-          println(ast)
-        case Left(error) =>
-          println(error)
-          println("Parsing failed.")
-      if index + 1 < chunks.length then println("// -----")
-    }
+    parseSource(input.mkString, args.input.getOrElse("-")) match
+      case Right(ast) =>
+        println("Parsing succeeded.")
+        val errors = TypeInferencer().inferProgram(ast)
+        reportTypeErrors(errors, args.parsingDiagnostics)
+        println(ast)
+        if errors.nonEmpty && !args.parsingDiagnostics then sys.exit(1)
+      case Left(error) =>
+        println(error)
+        println("Parsing failed.")
+        if !args.parsingDiagnostics then sys.exit(1)
 
   private def runModule(operation: Operation, printGeneric: Boolean): Unit =
     val writer = StringWriter()
@@ -304,8 +303,7 @@ object Main:
             processedModule.fold(_ => (), printer.printTopLevel)
             printer.flush()
         case Err(msg = errorMsg) =>
-          if parsedArgs.parsingDiagnostics then println(errorMsg)
-          else throw Exception(errorMsg)
+          handleParsingError(errorMsg, parsedArgs)
 
       if index + 1 < parsedModules.length && !parsedArgs.run then
         println("// -----")

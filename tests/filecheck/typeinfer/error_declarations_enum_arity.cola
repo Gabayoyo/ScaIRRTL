@@ -1,0 +1,8 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+enum Box[a] { case MkBox(value: a) }
+type Wrong = Box[Int, Bool]
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_declarations_enum_arity.cola:4:1-28: Type error: Type Box expects 1 type arguments, got 2
+// CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), TypeDecl(Wrong,TName(Box,List(TInt, TBool)))),None)

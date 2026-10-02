@@ -1,4 +1,4 @@
-// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s 2>&1 | filecheck %s
 // Match checks reject constructors that belong to a different enum than the
 // scrutinee, and require full coverage of the scrutinee's declared
 // constructors (exhaustiveness, T-Match's {C1,...} = constructors(T)).

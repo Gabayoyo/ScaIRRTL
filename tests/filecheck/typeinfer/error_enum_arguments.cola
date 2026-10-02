@@ -1,0 +1,8 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+enum Box[a] { case MkBox(value: a) }
+val x: Box[Int] = MkBox(true)
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_enum_arguments.cola:4:19-30: Type error: Type mismatch: expected TInt but got TBool
+// CHECK-NEXT:  Program(List(EnumDecl(Box,List(a),List(EnumCase(MkBox,List((value,TName(a,List())))))), ValDecl(x,Construct(MkBox,List(Lit(BoolLit(true),Some(TBool))),Some(TName(Box,List(TBool)))),Some(TName(Box,List(TInt))))),None)

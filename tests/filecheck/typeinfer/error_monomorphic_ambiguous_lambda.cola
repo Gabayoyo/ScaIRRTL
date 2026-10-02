@@ -1,0 +1,7 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+val f = (x: Int) => Nil
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_monomorphic_ambiguous_lambda.cola:3:21-24: Type error: Ambiguous inferred type: TMeta(1)
+// CHECK-NEXT:  Program(List(ValDecl(f,Lambda(List((x,TInt)),Lit(NilLit,Some(TList(TMeta(1)))),Some(TFun(List(TInt),TList(TMeta(1))))),None)),None)

@@ -1,4 +1,4 @@
-// RUN: choco-opt --dump-ast %s | filecheck %s
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
 
 // A binary operator with no right-hand side is not a valid expression.
 val x = 1 +

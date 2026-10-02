@@ -1,4 +1,4 @@
-// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s 2>&1 | filecheck %s
 // if/else branches must unify to the same type.
 
 val bad = if true then 1 else "no"

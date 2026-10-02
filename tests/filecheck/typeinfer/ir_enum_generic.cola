@@ -1,8 +1,5 @@
 // RUN: choco-opt %s | filecheck %s
-// IR-level: generic match bindings stay !chocola.unknown at the IR level --
-// MatchCase has no AST type slot to carry the (soundly inferred, see
-// typeinfer/enum_generic.cola) rigid type-parameter type through to IrGen.scala.
-// This is a documented, accepted limitation, not a regression.
+// Generic match fields and block arguments retain the scrutinee arguments.
 
 enum Box[a] {
   case MkBox(value: a)
@@ -14,16 +11,16 @@ val unwrapped = MkBox(7) match {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    "chocola.enum"() <{sym = @Box, typeParams = [@a]}> ({
-// CHECK-NEXT:      "chocola.enum_case"() <{sym = @MkBox, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @MkBox, fields = [#chocola.enum_field<@value, !chocola.named<@a, []>>]}> : () -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:    %0 = "chocola.constant"() <{value = "7"}> : () -> !chocola.int
-// CHECK-NEXT:    %1 = "chocola.construct"(%0) <{ctor = @MkBox}> : (!chocola.int) -> !chocola.named<@Box>
+// CHECK-NEXT:    %1 = "chocola.construct"(%0) <{ctor = @MkBox}> : (!chocola.int) -> !chocola.named<@Box, [!chocola.int]>
 // CHECK-NEXT:    %2 = "chocola.match"(%1) ({
 // CHECK-NEXT:      "chocola.case"() <{ctor = @MkBox}> ({
-// CHECK-NEXT:      ^bb0(%3: !chocola.unknown):
-// CHECK-NEXT:        "chocola.yield"(%3) : (!chocola.unknown) -> ()
+// CHECK-NEXT:      ^bb0(%3: !chocola.int):
+// CHECK-NEXT:        "chocola.yield"(%3) : (!chocola.int) -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:    }) : (!chocola.named<@Box>) -> !chocola.named<@a>
+// CHECK-NEXT:    }) : (!chocola.named<@Box, [!chocola.int]>) -> !chocola.int
 // CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
 // CHECK-NEXT:      %3 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int
 // CHECK-NEXT:      "chocola.return"(%3) : (!chocola.int) -> ()

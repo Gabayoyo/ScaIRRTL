@@ -1,0 +1,8 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+val x = laterValue
+val laterValue = 2
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_scope_later_value.cola:3:9-19: Type error: Unbound variable: laterValue
+// CHECK-NEXT:  Program(List(ValDecl(x,Var(laterValue,Some(TMeta(1))),None), ValDecl(laterValue,Lit(IntLit(2),Some(TInt)),None)),None)

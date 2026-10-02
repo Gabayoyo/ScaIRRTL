@@ -25,19 +25,29 @@ import chocola.parser.Type as AstType
 
 private def convertAstType(t: AstType): ChocolaType =
   t match
-    case AstType.TInt       => IntType()
-    case AstType.TDouble    => DoubleType()
-    case AstType.TString    => StringType()
-    case AstType.TBool      => BoolType()
-    case AstType.TList(e)   => chocola.dialects.ListType(convertAstType(e))
-    case AstType.TFun(f, r) => FunType(convertAstType(f), convertAstType(r))
+    case AstType.TInt        => IntType()
+    case AstType.TDouble     => DoubleType()
+    case AstType.TString     => StringType()
+    case AstType.TBool       => BoolType()
+    case AstType.TList(e)    => chocola.dialects.ListType(convertAstType(e))
+    case AstType.TFun(ps, r) =>
+      FunType(ArrayAttribute(ps.map(convertAstType)*), convertAstType(r))
     case AstType.TTuple(es) =>
       TupleType(ArrayAttribute(es.map(convertAstType)*))
-    case AstType.TName("_")  => unknown
-    case AstType.TName(name) => NamedType(symbolRef(name))
+    case AstType.TName(name, args) =>
+      NamedType(symbolRef(name), ArrayAttribute(args.map(convertAstType)*))
+    case AstType.TParam(name, _) =>
+      NamedType(symbolRef(name), ArrayAttribute[ChocolaType]())
+    case AstType.TMeta(_) | AstType.TError =>
+      throw IllegalArgumentException(s"Unresolved type passed to IR: $t")
 
 private def optionalAstTypeToAttr(tpe: Option[AstType]): ChocolaType =
-  tpe.fold[ChocolaType](unknown)(convertAstType)
+  convertAstType(
+    tpe
+      .getOrElse(
+        throw IllegalArgumentException("Expression has no inferred type")
+      )
+  )
 
 private def symbolRef(name: String): SymbolRefAttr =
   SymbolRefAttr(StringData(name))
@@ -61,7 +71,6 @@ private def asResult[T <: ChocolaType](
 private final case class Env(
     locals: Map[String, Value[ChocolaType]] = Map.empty,
     functions: Map[String, SymbolRefAttr] = Map.empty,
-    constructors: Map[String, Seq[ChocolaType]] = Map.empty,
 ):
 
   def bind(name: String, v: Value[ChocolaType]): Env =
@@ -72,9 +81,6 @@ private final case class Env(
 
   def bindFunction(name: String, sym: SymbolRefAttr): Env =
     copy(functions = functions + (name -> sym))
-
-  def bindConstructors(ctors: Seq[(String, Seq[ChocolaType])]): Env =
-    copy(constructors = constructors ++ ctors)
 
 /** A source-level error, tied to the location of the offending node. */
 final case class SourceError(msg: String, location: Location)
@@ -142,18 +148,27 @@ def generateProgram(program: Program): ModuleOp =
     )
   }
   val (declOps, env) =
-    program.decls
-      .foldLeft((Seq.empty[Operation], Env())) { case ((ops, env), decl) =>
-        val (newOps, newEnv) = generateDecl(decl)(using env)
-        (ops ++ newOps, newEnv)
-      }
+    program.decls.foldLeft(
+      (
+        Seq.empty[Operation],
+        Env(
+          functions = program.decls
+            .collect { case DefDecl(n, _, _, _, _) => n -> symbolRef(n) }.toMap
+        ),
+      )
+    ) { case ((ops, env), decl) =>
+      val (newOps, newEnv) = generateDecl(decl)(using env)
+      (ops ++ newOps, newEnv)
+    }
   val mainOps =
     if sourceMains.nonEmpty then Seq.empty
     else Seq(generateMain(program.expr)(using env))
   ModuleOp(Region(Block(declOps ++ mainOps)))
 
 /** Generate the synthetic entry point for a program without a source main. */
-private def generateMain(expr: Option[Expr])(using Env): FuncDeclOp =
+private def generateMain(
+    expr: Option[Expr]
+)(using Env): FuncDeclOp =
   val bodyOps = expr match
     case Some(expr) =>
       val g = generateExpr(expr)
@@ -184,9 +199,11 @@ private def zeroReturn: Seq[Operation] =
 // Declaration generation
 // ---------------------------------------------------------------------------
 
-private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
+private def generateDecl(
+    decl: Decl
+)(using env: Env): (Seq[Operation], Env) =
   decl match
-    case ValDecl(name, body) =>
+    case ValDecl(name, body, _) =>
       val g = generateExpr(body)
       (g.ops, env.bind(name, g.value))
 
@@ -195,8 +212,10 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
       // Make the symbol visible while constructing its own body so recursive
       // calls are represented symbolically rather than as an SSA cycle.
       val outerEnv = env.bindFunction(name, sym)
-      val paramTypes: Seq[ChocolaType] = params.map((_, t) => convertAstType(t))
-      val resultType = convertAstType(retTy)
+      val AstType.TFun(resolvedParams, resolvedResult) = decl.resolvedType
+        .get: @unchecked
+      val paramTypes: Seq[ChocolaType] = resolvedParams.map(convertAstType)
+      val resultType = convertAstType(resolvedResult)
       val functionType = FunctionType(
         ArrayAttribute(paramTypes*),
         ArrayAttribute(resultType),
@@ -205,7 +224,9 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
         paramTypes,
         (args: Iterable[Value[Attribute]]) =>
           val g =
-            generateExpr(body)(using outerEnv.bindAll(params.map(_._1), args))
+            generateExpr(body)(using
+              outerEnv.bindAll(params.map(_._1), args)
+            )
           g.ops :+ ReturnOp(g.value).at(body.location),
       )
       val funcOp = FuncDeclOp(
@@ -218,20 +239,18 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
 
     case TypeDecl(name, tpe) =>
       val aliasOp =
-        TypeAliasDeclOp(symbolRef(name), convertAstType(tpe)).at(decl.location)
+        TypeAliasDeclOp(
+          symbolRef(name),
+          convertAstType(decl.resolvedType.get),
+        ).at(decl.location)
       (Seq(aliasOp), env)
 
     case EnumDecl(name, typeParams, cases) =>
-      val ctorTypes = cases.map { case EnumCase(caseName, fields) =>
-        val bindingTypes =
-          if typeParams.isEmpty then fields.map((_, t) => convertAstType(t))
-          else fields.map(_ => unknown)
-        caseName -> bindingTypes
-      }
       val caseOps: Seq[Operation] = cases.map {
         case enumCase @ EnumCase(caseName, fields) =>
-          val fieldAttrs = fields.map { case (fieldName, fieldType) =>
-            EnumFieldAttr(symbolRef(fieldName), convertAstType(fieldType))
+          val fieldAttrs = fields.map(_._1).zip(enumCase.fieldTypes).map {
+            case (fieldName, fieldType) =>
+              EnumFieldAttr(symbolRef(fieldName), convertAstType(fieldType))
           }
           EnumCaseDeclOp(symbolRef(caseName), ArrayAttribute(fieldAttrs*))
             .at(enumCase.location)
@@ -241,13 +260,15 @@ private def generateDecl(decl: Decl)(using env: Env): (Seq[Operation], Env) =
         ArrayAttribute(typeParams.map(symbolRef)*),
         Region(Block(caseOps)),
       ).at(decl.location)
-      (Seq(enumOp), env.bindConstructors(ctorTypes))
+      (Seq(enumOp), env)
 
 // ---------------------------------------------------------------------------
 // Expression generation
 // ---------------------------------------------------------------------------
 
-private def generateExpr(expr: Expr)(using env: Env): Generated =
+private def generateExpr(
+    expr: Expr
+)(using env: Env): Generated =
   expr match
 
     case Expr.Lit(lit, _) =>
@@ -337,7 +358,8 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
 
     case Expr.Lambda(params, body, _) =>
       val result = resultOf(expr)
-      val paramTypes: Seq[ChocolaType] = params.map((_, t) => convertAstType(t))
+      val AstType.TFun(resolvedParams, _) = expr.tpe.get: @unchecked
+      val paramTypes: Seq[ChocolaType] = resolvedParams.map(convertAstType)
       val bodyBlock = Block(
         paramTypes,
         (args: Iterable[Value[Attribute]]) =>
@@ -354,8 +376,7 @@ private def generateExpr(expr: Expr)(using env: Env): Generated =
       val result = resultOf(expr)
       val caseOps: Seq[Operation] = cases.map {
         case matchCase @ MatchCase(ctor, bindings, body) =>
-          val bindingTypes = env.constructors
-            .getOrElse(ctor, bindings.map(_ => unknown))
+          val bindingTypes = matchCase.bindingTypes.map(convertAstType)
           val bodyBlock = Block(
             bindingTypes,
             (bindingArgs: Iterable[Value[Attribute]]) =>

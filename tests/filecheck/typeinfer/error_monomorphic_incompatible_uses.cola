@@ -1,0 +1,9 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+val xs = Nil
+val ints = 1 :: xs
+val bools = true :: xs
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_monomorphic_incompatible_uses.cola:5:21-23: Type error: Type mismatch: expected TBool but got TInt
+// CHECK-NEXT:  Program(List(ValDecl(xs,Lit(NilLit,Some(TList(TInt))),None), ValDecl(ints,BinOp(::,Lit(IntLit(1),Some(TInt)),Var(xs,Some(TList(TInt))),Some(TList(TInt))),None), ValDecl(bools,BinOp(::,Lit(BoolLit(true),Some(TBool)),Var(xs,Some(TList(TInt))),Some(TList(TBool))),None)),None)

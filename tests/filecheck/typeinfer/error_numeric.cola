@@ -1,4 +1,4 @@
-// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s 2>&1 | filecheck %s
 // Arithmetic operators require int or double operands (T-Add et al.); this
 // wasn't checked at all before the rewrite, so "a" + "b" used to type-check.
 

@@ -14,6 +14,6 @@ def sumHead(xs: MyIntList): MyInt = 0
 
 // CHECK: Parsing succeeded.
 // CHECK: TypeDecl(MyInt,TInt)
-// CHECK: TypeDecl(MyIntList,TList(TName(MyInt)))
-// CHECK: DefDecl(inc,List(),List((x,TName(MyInt))),TName(MyInt),BinOp(+,Var(x,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)))
-// CHECK: DefDecl(sumHead,List(),List((xs,TName(MyIntList))),TName(MyInt),Lit(IntLit(0),Some(TInt)))
+// CHECK: TypeDecl(MyIntList,TList(TName(MyInt,List())))
+// CHECK: DefDecl(inc,List(),List((x,TName(MyInt,List()))),TName(MyInt,List()),BinOp(+,Var(x,Some(TInt)),Lit(IntLit(1),Some(TInt)),Some(TInt)))
+// CHECK: DefDecl(sumHead,List(),List((xs,TName(MyIntList,List()))),TName(MyInt,List()),Lit(IntLit(0),Some(TInt)))

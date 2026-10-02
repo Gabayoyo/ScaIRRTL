@@ -1,0 +1,7 @@
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
+
+def unused(x: Missing): Int = 0
+
+// CHECK:       Parsing succeeded.
+// CHECK-NEXT:  {{.*}}/error_declarations_unknown_parameter.cola:3:1-32: Type error: Unknown type: Missing
+// CHECK-NEXT:  Program(List(DefDecl(unused,List(),List((x,TName(Missing,List()))),TInt,Lit(IntLit(0),Some(TInt)))),None)

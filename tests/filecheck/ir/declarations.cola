@@ -14,7 +14,7 @@ enum Color {
 
 enum Tree[a] {
   case Leaf(value: a)
-  case Node(left: Tree, right: Tree)
+  case Node(left: Tree[a], right: Tree[a])
 }
 
 // CHECK:       builtin.module {
@@ -26,9 +26,9 @@ enum Tree[a] {
 // CHECK-NEXT:      %2 = "chocola.mul"(%0, %1) : (!chocola.int, !chocola.int) -> !chocola.int
 // CHECK-NEXT:      "chocola.return"(%2) : (!chocola.int) -> ()
 // CHECK-NEXT:    }) : () -> ()
-// CHECK-NEXT:    "chocola.func"() <{sym = @identity, typeParams = [@a], functionType = (!chocola.named<@a>) -> !chocola.named<@a>}> ({
-// CHECK-NEXT:    ^bb0(%0: !chocola.named<@a>):
-// CHECK-NEXT:      "chocola.return"(%0) : (!chocola.named<@a>) -> ()
+// CHECK-NEXT:    "chocola.func"() <{sym = @identity, typeParams = [@a], functionType = (!chocola.named<@a, []>) -> !chocola.named<@a, []>}> ({
+// CHECK-NEXT:    ^bb0(%0: !chocola.named<@a, []>):
+// CHECK-NEXT:      "chocola.return"(%0) : (!chocola.named<@a, []>) -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:    "chocola.func"() <{sym = @add, typeParams = [], functionType = (!chocola.int, !chocola.int) -> !chocola.int}> ({
 // CHECK-NEXT:    ^bb0(%0: !chocola.int, %1: !chocola.int):
@@ -41,8 +41,8 @@ enum Tree[a] {
 // CHECK-NEXT:      "chocola.enum_case"() <{sym = @Blue, fields = []}> : () -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:    "chocola.enum"() <{sym = @Tree, typeParams = [@a]}> ({
-// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Leaf, fields = [#chocola.enum_field<@value, !chocola.named<@a>>]}> : () -> ()
-// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Node, fields = [#chocola.enum_field<@left, !chocola.named<@Tree>>, #chocola.enum_field<@right, !chocola.named<@Tree>>]}> : () -> ()
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Leaf, fields = [#chocola.enum_field<@value, !chocola.named<@a, []>>]}> : () -> ()
+// CHECK-NEXT:      "chocola.enum_case"() <{sym = @Node, fields = [#chocola.enum_field<@left, !chocola.named<@Tree, [!chocola.named<@a, []>]>>, #chocola.enum_field<@right, !chocola.named<@Tree, [!chocola.named<@a, []>]>>]}> : () -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:    "chocola.func"() <{sym = @main, typeParams = [], functionType = () -> !chocola.int}> ({
 // CHECK-NEXT:      %0 = "chocola.constant"() <{value = "0"}> : () -> !chocola.int

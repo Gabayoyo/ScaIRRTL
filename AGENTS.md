@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## What this is
 
@@ -70,8 +70,13 @@ Module dependency chain: `dialects` ← `parser` ← `main`.
 ## IR generation (parser module)
 
 `IrGen.scala` walks the typed AST purely functionally: there is no mutable
-op buffer. An immutable `Env` maps names to SSA values, function symbols and
-constructor field types.
+op buffer. An immutable `Env` maps names to SSA values and function symbols.
+
+Type inference annotates the AST before generation: expressions have `tpe`,
+declarations have `resolvedType`, enum cases have `fieldTypes`, and match cases
+have `bindingTypes`. These annotations contain resolved aliases and substituted
+generic arguments. `generateProgram(Program)` consumes that annotated AST;
+there is no separate inference metadata environment passed into generation.
 
 Key invariants:
 - `generateExpr(expr)(using Env)` returns a `Generated(ops, value)`: the ops to emit, in order, and the SSA value holding the result.
@@ -100,7 +105,11 @@ val x = 42
 `chocola-parse` is resolved by `lit` to `out/main/launcher.dest/run` (built by Mill). Run all tests with `./mill filechecks.run`.
 
 IR-based tests use complete, exact FileCheck expectations generated with
-[`filecheckize`](https://pypi.org/project/filecheckize/). Install it in a new
+[`filecheckize`](https://pypi.org/project/filecheckize/). It helped generate and
+refresh these expectations directly from compiler output, avoiding manual
+transcription of full lines, SSA names, and operation order. Prefer it when
+adding or updating IR checks, then review the output for correctness.
+Install it in a new
 environment with `pip install filecheckize`, then regenerate a check block by
 piping the relevant compiler invocation into it, for example:
 
@@ -112,6 +121,21 @@ choco-opt -p convert-choco-to-func input.cola | filecheckize --check-prefix FUNC
 Do not anonymize SSA values or block labels: concrete names make the expected
 IR easier to follow and verify operand wiring. Keep the generated `CHECK-NEXT`
 lines so tests cover the complete operation order and module structure.
+
+For round-trip tests, pipe directly through the compiler again:
+
+```sh
+// RUN: choco-opt %s | choco-opt | filecheck %s
+```
+
+Use temporary files only when their contents are reused or compared. New IR
+tests must check the complete output with full lines and chained `CHECK-NEXT`
+expectations, including tests with separate prefixes for lowering or round trips.
+Do not replace these with selected operation names or type fragments.
+
+ChocoLa inputs are parsed as one whole file; `--split-input-file` is for MLIR
+inputs. Keep independent invalid ChocoLa examples in separate `.cola` files
+and use `--parsing-diagnostics` to check their diagnostics with FileCheck.
 
 ## CI
 

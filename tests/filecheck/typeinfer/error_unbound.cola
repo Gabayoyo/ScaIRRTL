@@ -1,4 +1,4 @@
-// RUN: choco-opt --dump-ast %s 2>&1 | filecheck %s
+// RUN: choco-opt --parsing-diagnostics --dump-ast %s 2>&1 | filecheck %s
 // Referencing an undeclared variable is a type error (not a parse error);
 // inference recovers with a fresh metavariable so the rest of the program
 // still gets checked (Main.scala keeps type errors non-fatal).

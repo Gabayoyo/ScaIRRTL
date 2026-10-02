@@ -5,6 +5,12 @@ import scair.ir.FileLineColRange
 import scair.ir.Location
 import scair.ir.UnknownLoc
 
+// The parser and type inferencer share one AST: parsing builds the syntax tree,
+// then inference fills and resolves its mutable type annotations in place.
+// This keeps IR generation self-contained without a separate typed tree or
+// type lookup table. Generation requires successful inference and only reads
+// the annotations; a parsed or partially inferred tree is not ready for IR.
+
 // ─── Source locations ────────────────────────────────────────────────────────
 
 /** An AST node the parser can annotate with where it came from, mirroring
@@ -51,11 +57,20 @@ enum Type:
   case TString
   case TBool
   case TList(elem: Type)
-  case TFun(from: Type, to: Type)
+  case TFun(params: List[Type], result: Type)
   case TTuple(elems: List[Type])
-  case TName(name: String)
+  // Surface names become nominal enum types after annotation validation.
+  case TName(name: String, args: List[Type] = Nil)
+  // Owner identities keep parameters of separate declarations rigid and distinct.
+  case TParam(name: String, owner: Int)
+  case TMeta(id: Int)
+  // Internal recovery marker; never an accepted source or IR type.
+  case TError
 
 enum Expr extends Located:
+  // Instantiated arguments are finalized with tpe, including phantom arguments.
+  var typeArguments: List[Type] = Nil
+
   // Inferred type, set by TypeInferencer after parsing.
   def tpe: Option[Type]
   def tpe_=(value: Option[Type]): Unit
@@ -90,10 +105,15 @@ enum Expr extends Located:
   case Tuple(elems: List[Expr], var tpe: Option[Type] = None)
 
 case class MatchCase(ctor: String, bindings: List[String], body: Expr)
-    extends Located
+    extends Located:
+  // Types of the pattern bindings after substituting the scrutinee arguments.
+  var bindingTypes: List[Type] = Nil
 
 enum Decl extends Located:
-  case ValDecl(name: String, body: Expr)
+  // Inference resolves aliases and records the value or function signature here.
+  var resolvedType: Option[Type] = None
+
+  case ValDecl(name: String, body: Expr, annotation: Option[Type] = None)
   case TypeDecl(name: String, tpe: Type)
 
   case DefDecl(
@@ -106,6 +126,7 @@ enum Decl extends Located:
 
   case EnumDecl(name: String, typeParams: List[String], cases: List[EnumCase])
 
-case class EnumCase(name: String, fields: List[(String, Type)]) extends Located
+case class EnumCase(name: String, fields: List[(String, Type)]) extends Located:
+  var fieldTypes: List[Type] = Nil
 
 case class Program(decls: List[Decl], expr: Option[Expr])
