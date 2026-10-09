@@ -1,8 +1,0 @@
-// RUN: choco-opt --dump-ast %s | filecheck %s
-// CHECK: Parsing succeeded.
-// CHECK-NEXT: Program(List(EnumDecl(Box,List(),List(EnumCase(Wrap,List((value,TInt))))), ValDecl(value,Match(Construct(Wrap,List(Lit(IntLit(7),Some(TInt))),Some(TName(Box,List()))),List(MatchCase(Wrap,List(v),Var(v,Some(TInt)))),Some(TInt)),None)),None)
-
-enum Box:
-  case Wrap(value: Int)
-val value = Wrap(7) match
-  case Wrap(v) => v

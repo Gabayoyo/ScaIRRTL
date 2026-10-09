@@ -1,9 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def add(x: Int, y: Int): Int = x + y
-val f = add
-val indirect = f(1, 2, 3)
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_function_lists_indirect_arity.cola:5:16-26: Type error: Function expects 2 args, got 3
-// CHECK-NEXT:  Program(List(DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt))), ValDecl(f,Var(add,Some(TFun(List(TInt, TInt),TInt))),None), ValDecl(indirect,Apply(Var(f,Some(TFun(List(TInt, TInt),TInt))),List(Lit(IntLit(1),Some(TInt)), Lit(IntLit(2),Some(TInt)), Lit(IntLit(3),Some(TInt))),Some(TInt)),None)),None)

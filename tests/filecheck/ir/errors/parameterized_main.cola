@@ -1,5 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics %s 2>&1 | filecheck %s
-
-def main(x: Int): Int = x
-
-// CHECK: {{.*}}parameterized_main.cola:3:1-26: error: Source main function must have signature def main(): Int

@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-val xs = Nil
-val cyclic = xs :: xs
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic_infinite_list.cola:4:20-22: Type error: Occurs check failed: infinite type
-// CHECK-NEXT:  Program(List(ValDecl(xs,Lit(NilLit,Some(TList(TMeta(1)))),None), ValDecl(cyclic,BinOp(::,Var(xs,Some(TList(TMeta(1)))),Var(xs,Some(TList(TMeta(1)))),Some(TList(TList(TMeta(1))))),None)),None)

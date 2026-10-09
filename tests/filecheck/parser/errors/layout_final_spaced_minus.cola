@@ -1,9 +1,0 @@
-// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
-
-val value = 7
-- 2
-
-// CHECK:       {{.*}}/layout_final_spaced_minus.cola:4:2: Parse error: expected unary operand adjacent to its operator
-// CHECK-NEXT:  - 2
-// CHECK-NEXT:   ^
-// CHECK-NEXT:  Parsing failed.

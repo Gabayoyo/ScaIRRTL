@@ -1,4 +1,4 @@
-// RUN: choco-opt -a -s %s | filecheck %s
+// RUN: scairrtl-opt -a -s %s | filecheck %s
 
 builtin.module {
   "example.unknown"() : () -> ()

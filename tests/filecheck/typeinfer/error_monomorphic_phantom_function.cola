@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def phantom[a](): Int = 1
-val unusedArgument = phantom()
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic_phantom_function.cola:4:22-29: Type error: Ambiguous inferred type: TMeta(1)
-// CHECK-NEXT:  Program(List(DefDecl(phantom,List(a),List(),TInt,Lit(IntLit(1),Some(TInt))), ValDecl(unusedArgument,Apply(Var(phantom,Some(TFun(List(),TInt))),List(),Some(TInt)),None)),None)

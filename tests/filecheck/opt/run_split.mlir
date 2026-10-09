@@ -1,4 +1,4 @@
-// RUN: choco-opt --run --split-input-file %s | filecheck %s
+// RUN: scairrtl-opt --run --split-input-file %s | filecheck %s
 // REQUIRES: mlir-opt, mlir-runner
 
 builtin.module {

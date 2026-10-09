@@ -1,7 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-val xs = Nil
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic.cola:3:10-13: Type error: Ambiguous inferred type: TMeta(1)
-// CHECK-NEXT:  Program(List(ValDecl(xs,Lit(NilLit,Some(TList(TMeta(1)))),None)),None)

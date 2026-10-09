@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def add(x: Int, y: Int): Int = x + y
-val f: ((Int, Int)) => Int = add
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_function_lists_tuple_arity.cola:4:30-33: Type error: Type mismatch: expected TFun(List(TTuple(List(TInt, TInt))),TInt) but got TFun(List(TInt, TInt),TInt)
-// CHECK-NEXT:  Program(List(DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt))), ValDecl(f,Var(add,Some(TFun(List(TInt, TInt),TInt))),Some(TFun(List(TTuple(List(TInt, TInt))),TInt)))),None)

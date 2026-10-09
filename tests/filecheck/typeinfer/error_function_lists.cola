@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def add(x: Int, y: Int): Int = x + y
-val partial = add(1)
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_function_lists.cola:4:15-21: Type error: Function expects 2 args, got 1
-// CHECK-NEXT:  Program(List(DefDecl(add,List(),List((x,TInt), (y,TInt)),TInt,BinOp(+,Var(x,Some(TInt)),Var(y,Some(TInt)),Some(TInt))), ValDecl(partial,Apply(Var(add,Some(TFun(List(TInt, TInt),TInt))),List(Lit(IntLit(1),Some(TInt))),Some(TInt)),None)),None)

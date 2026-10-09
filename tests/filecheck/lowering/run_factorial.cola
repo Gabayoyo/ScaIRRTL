@@ -1,9 +1,0 @@
-// RUN: choco-opt -p convert-choco-to-mlir --run %s | filecheck %s
-// REQUIRES: mlir-opt, mlir-runner
-
-def factorial(n: Int): Int =
-  if n <= 1 then 1 else n * factorial(n - 1)
-
-def main(): Int = factorial(6)
-
-// CHECK: 720

@@ -1,9 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-type Alias = a
-def caller[a](x: Alias): a = x
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_declarations_alias_scope.cola:3:1-15: Type error: Unknown type: a
-// CHECK-NEXT:  {{.*}}/error_declarations_alias_scope.cola:4:1-31: Type error: Unknown type: a
-// CHECK-NEXT:  Program(List(TypeDecl(Alias,TName(a,List())), DefDecl(caller,List(a),List((x,TName(Alias,List()))),TName(a,List()),Var(x,Some(TError)))),None)

@@ -1,9 +1,0 @@
-// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
-
-val x = if true then
-  1 else 2
-
-// CHECK:       {{.*}}/layout_else_hanging.cola:4:5: Parse error: expected (newline | else on the if's line or aligned with its indentation)
-// CHECK-NEXT:    1 else 2
-// CHECK-NEXT:      ^
-// CHECK-NEXT:  Parsing failed.

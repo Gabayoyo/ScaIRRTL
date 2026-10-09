@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def wrong[a][b](x: a): a = x
-
-// CHECK:       {{.*}}/error_function_lists_multiple_type_lists.cola:3:13: Parse error: expected "("
-// CHECK-NEXT:  def wrong[a][b](x: a): a = x
-// CHECK-NEXT:              ^
-// CHECK-NEXT:  Parsing failed.

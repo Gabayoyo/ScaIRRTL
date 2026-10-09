@@ -1,4 +1,4 @@
-// RUN: choco-opt --split-input-file %s | filecheck %s
+// RUN: scairrtl-opt --split-input-file %s | filecheck %s
 
 builtin.module {
 }

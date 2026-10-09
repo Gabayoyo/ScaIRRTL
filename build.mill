@@ -12,22 +12,23 @@ import mill.api.BuildCtx
 object versions:
     val scair = "0.0.0-1-a7b7f7-SNAPSHOT"
     val scala = "3.9.0"
-    val fastparse = "3.1.1"
     val scopt = "4.1.0"
 
-trait ChocoLaModule extends ScalaModule with ScalafixModule:
+trait ScaIRRTLModule extends ScalaModule with ScalafixModule:
     override def scalaVersion = versions.scala
 
-object `package` extends ChocoLaModule:
-
-    object dialects extends ChocoLaModule:
-        override def repositoriesTask = Task.Anon {
-            super.repositoriesTask() ++ Seq(
-                coursier.MavenRepository(
-                    "https://central.sonatype.com/repository/maven-snapshots"
-                )
+    // ScaIR is published to Sonatype snapshots, which is not a default repository.
+    override def repositoriesTask = Task.Anon {
+        super.repositoriesTask() ++ Seq(
+            coursier.MavenRepository(
+                "https://central.sonatype.com/repository/maven-snapshots"
             )
-        }
+        )
+    }
+
+object `package` extends ScaIRRTLModule:
+
+    object dialects extends ScaIRRTLModule:
         override def mvnDeps = Seq(
             mvn"io.github.edin-dal::scair-core::${versions.scair}",
             mvn"io.github.edin-dal::scair-dialects-arith::${versions.scair}",
@@ -35,30 +36,18 @@ object `package` extends ChocoLaModule:
             mvn"io.github.edin-dal::scair-dialects-scf::${versions.scair}"
         )
 
-    
-    object parser extends ChocoLaModule:
-        override def mvnDeps = Seq(
-            mvn"com.lihaoyi::fastparse::${versions.fastparse}"
-        )
-
-        override def moduleDeps = Seq(dialects)
-
-    object lowering extends ChocoLaModule:
-        override def mvnDeps = Seq(
-            mvn"io.github.edin-dal::scair-passes::${versions.scair}"
-        )
-        override def moduleDeps = Seq(dialects)
-
-    object opt extends ChocoLaModule with UnidocModule:
+    object opt extends ScaIRRTLModule with UnidocModule:
         override def docResources = Task.Sources(BuildCtx.workspaceRoot / "docs")
 
         // Mill's default Unidoc classpath omits this module's own library dependencies.
         override def unidocCompileClasspath = Task:
             (super.unidocCompileClasspath() ++ compileClasspath()).distinct
 
-        override def unidocDocumentTitle = "ChocoLa"
+        override def unidocDocumentTitle = "ScaIRRTL"
 
-        override def unidocSourceUrl = Some("https://github.com/PapyChacal/ChocoLaCompiler/blob/main")
+        override def unidocSourceUrl = Some(
+            "https://github.com/Gabayoyo/ScaIRRTL/blob/main"
+        )
 
         override def unidocOptions = Task:
             Seq("-project", unidocDocumentTitle(), "-siteroot", docResources().head.path.toString)
@@ -68,10 +57,10 @@ object `package` extends ChocoLaModule:
             println(index.toNIO.toUri.toASCIIString)
 
         override def mvnDeps = Seq(
-            mvn"com.github.scopt::scopt::${versions.scopt}"
+            mvn"com.github.scopt::scopt::${versions.scopt}",
+            mvn"io.github.edin-dal::scair-passes::${versions.scair}"
         )
-        override def moduleDeps = Seq(parser, lowering)
-
+        override def moduleDeps = Seq(dialects)
 
     object filechecks extends Module:
         def run() = Task.Command(exclusive = true):
@@ -81,7 +70,7 @@ object `package` extends ChocoLaModule:
                     propagateEnv = true,
                     stdout = os.Inherit,
                     stderr = os.Inherit,
-                    env = Map("CHOCO_OPT" -> launcher.toString)
+                    env = Map("SCAIRRTL_OPT" -> launcher.toString)
                 )
 
     // Top level commands and helpers
@@ -97,12 +86,12 @@ object `package` extends ChocoLaModule:
     def format() = Task.Command:
         Task.sequence:
             allChildren.collect:
-                case m: ChocoLaModule => m.fix()
+                case m: ScaIRRTLModule => m.fix()
         scalafmt.ScalafmtModule.reformatAll()()
 
     // Run all formatting *checks* on all sources in the framework
     def checkFormat() = Task.Command:
         Task.sequence:
             allChildren.collect:
-                case m: ChocoLaModule => m.fix("--check")
+                case m: ScaIRRTLModule => m.fix("--check")
         scalafmt.ScalafmtModule.checkFormatAll()()

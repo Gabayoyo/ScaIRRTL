@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-enum Bad:
-  case Field(value: List)
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_declarations_list_arity.cola:4:3-26: Type error: Type List expects 1 type arguments, got 0
-// CHECK-NEXT:  Program(List(EnumDecl(Bad,List(),List(EnumCase(Field,List((value,TName(List,List()))))))),None)

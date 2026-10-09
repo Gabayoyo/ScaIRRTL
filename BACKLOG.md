@@ -1,91 +1,60 @@
 # Development backlog
 
 Durable context for future development sessions. These items record open
-decisions and implementation gaps, not changes to the language rules.
-The [specification](docs/_docs/spec.md) remains the source of truth for syntax
-and typing; [AGENTS.md](AGENTS.md) describes current implementation practices.
+decisions and implementation gaps, not settled behavior.
+[AGENTS.md](AGENTS.md) describes current implementation practices.
 
 Keep entries concise and grounded in the repository. Record relevant discoveries
 under the existing item rather than adding session logs. Remove completed items
-once their decisions and behavior are captured in the specification, code,
+once their decisions and behavior are captured in the dialect, documentation,
 and tests as appropriate.
 
-## Initialization semantics for forward calls and captured values
+## Dialect definition
 
-**Problem:** A value initializer can call a forward function whose body captures
-a top-level value that has not yet been initialized. For example:
+**Problem:** The dialect has no types or operations yet.
+`[ScaIRRTL.scala](dialects/src/ScaIRRTL.scala)` is a stub, and `scairrtl-opt`
+registers only ScaIR's dialects.
 
-```scala
-val first = readLater()
-val later = 42
-def readLater(): Int = later
-first
-```
+**Known constraints:** ScaIRRTL follows ScaIR's derivation style — case classes
+deriving `DerivedAttribute`/`DerivedOperation`, collected in a `summonDialect`
+tuple — rather than a tablegen-style DSL. A dialect joins the context by being
+appended to `scair.dialects.allDialects` in [Opt.scala](opt/src/Opt.scala).
+Related prior art is FIRRTL and CIRCT's `rtl` dialect, which separate structural
+wiring from clocked behavior.
 
-**Known constraints:** All function signatures are visible regardless of source
-order. Values are initialized in source order, and a function can capture only
-values preceding its own declaration. Those visibility rules permit the example
-but do not define what happens when `readLater()` runs before `later` is ready.
-See declaration scope in the specification, `checkBodies` in
-[TypeInfer.scala](parser/src/TypeInfer.scala), and declaration generation in
-[IrGen.scala](parser/src/IrGen.scala).
+**Decisions needed:** Choose the type set (widths, clocks, resets, wires,
+registers, aggregates) and the operation set (module definition and
+instantiation, connections, combinational logic, sequential elements). Decide
+how widths are represented — parameterized types versus explicit attributes —
+and whether port direction and flip are structural or attribute-based.
 
-**Decisions needed:** Choose the runtime policy and where to enforce it,
-including calls through other functions and function-valued bindings. Preserve
-the distinction between signature visibility and value initialization.
+**Completion:** Define the types and operations, register them, and cover
+assembly, verification, and round-tripping with complete IR fixtures.
 
-**Completion:** Document the chosen semantics and implement the necessary checks
-or runtime support. Cover direct and transitive calls before initialization,
-safe calls after initialization, and recursion with regression tests; include
-execution coverage for supported lowering.
+## Lowering path
 
-## Generic specialization and execution
+**Problem:** There are no conversion passes for the dialect, and no lower-level
+representation to convert to.
 
-**Problem:** The frontend infers generic arguments and emits symbolic generic
-IR, but generic functions do not currently lower to executable MLIR.
+**Known constraints:** ScaIR's `ConversionPass` framework, type converters, and
+`builtin.unrealized_conversion_cast` materialization are available through
+`scair-passes`, which `opt` already depends on. ScaIR registers
+`convert-arith-to-llvm` and `convert-func-to-llvm` among its passes.
 
-**Known constraints:** Resolved types and inferred type arguments live on AST
-nodes; enum type arguments are preserved. Function conversion currently requires
-no declared type parameters and a convertible scalar signature. See
-[IrGen.scala](parser/src/IrGen.scala),
-[ChocolaDialect.scala](dialects/src/ChocolaDialect.scala), and
-[Conversion.scala](lowering/src/Conversion.scala).
+**Decisions needed:** Choose the lowering target and its granularity, whether
+intermediate structural and behavioral dialects are introduced, and how
+unsupported constructs remain represented.
 
-**Decisions needed:** Choose an execution strategy, such as specialization,
-where it runs, and an initial supported subset. Define handling of recursive
-generic calls and repeated instantiations, and how unsupported cases remain
-represented. Coordinate aggregate types and closures with their own lowering
-support rather than assuming they already execute.
+**Completion:** Implement the conversions, keep residual IR well-formed, and add
+execution coverage where a target exists.
 
-**Completion:** Preserve current typing rules and produce verifiable, executable
-IR for the chosen subset. Test multiple concrete instantiations, repeated uses,
-recursion, and unsupported cases, with complete IR and upstream execution checks.
+## Documented dialect reference
 
-## Closure conversion and lowering
+**Problem:** `docs/_docs/` describes the project but not the dialect's types,
+operations, and assembly.
 
-**Problem:** Lambdas, returned functions, indirect calls, and captured top-level
-values are supported by the frontend, but there is no closure conversion or
-lowering. Function conversion currently rejects captures.
+**Decisions needed:** Choose how much of the reference belongs in prose versus
+Scaladoc, and whether type and operation spellings are stated normatively.
 
-**Known constraints:** IR generation uses immutable environments and nested
-regions; captures remain references to outer SSA values. Direct and indirect
-calls have distinct IR operations. See [IrGen.scala](parser/src/IrGen.scala),
-[ChocolaDialect.scala](dialects/src/ChocolaDialect.scala), and
-[ConvertChocoToFunc.scala](lowering/src/ConvertChocoToFunc.scala).
-
-**Decisions needed:** Choose a closure representation, capture passing and
-lifetime strategy, and an indirect-call convention. Decide an initial supported
-subset and how top-level captures interact with initialization semantics.
-
-**Completion:** Convert captures into explicit IR operands or environments and
-lower the supported function values and calls. Test capture-free and capturing
-lambdas, returned functions, nested captures, and top-level captures, including
-execution and complete IR checks. Preserve exact call arity and monomorphic
-value typing.
-
-## Related diagnostic proposal
-
-[errors.md](errors.md) is the contributor draft for beginner-friendly diagnostics
-aimed at students using ChocoLa. It contains the teaching goals, Scala comparison
-material, and proposed messages. Keep further diagnostic design there rather
-than duplicating it here; implementation scope and wording still need decisions.
+**Completion:** Document the types, operations, and assembly in `docs/_docs/`,
+and keep the reference current as definitions land.

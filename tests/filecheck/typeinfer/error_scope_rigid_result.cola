@@ -1,7 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def rigid[a](x: a): Int = x
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_scope_rigid_result.cola:3:27-28: Type error: Type mismatch: expected TInt but got TParam(a,1)
-// CHECK-NEXT:  Program(List(DefDecl(rigid,List(a),List((x,TName(a,List()))),TInt,Var(x,Some(TParam(a,1))))),None)

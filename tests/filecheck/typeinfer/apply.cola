@@ -1,8 +1,0 @@
-// RUN: choco-opt --dump-ast %s | filecheck %s
-
-// Function application checks one parameter list and returns its result.
-def double(x: Int): Int = x * 2
-val r = double(21)
-
-// The Apply result type is TInt (codomain of TFun(List(TInt), TInt)).
-// CHECK: Apply(Var(double,Some(TFun(List(TInt),TInt))),List(Lit(IntLit(21),Some(TInt))),Some(TInt))

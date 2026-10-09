@@ -1,5 +1,0 @@
-// RUN: choco-opt -p convert-choco-to-mlir %s | mlir-opt --allow-unregistered-dialect > /dev/null
-// REQUIRES: mlir-opt
-
-def choose(flag: Bool, x: Int, y: Int): Int =
-  if flag then x + 1 else y - 1

@@ -1,7 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-val xs: List[Int] = true :: Nil
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic_annotated_mismatch.cola:3:21-32: Type error: Type mismatch: expected TInt but got TBool
-// CHECK-NEXT:  Program(List(ValDecl(xs,BinOp(::,Lit(BoolLit(true),Some(TBool)),Lit(NilLit,Some(TList(TBool))),Some(TList(TBool))),Some(TList(TInt)))),None)

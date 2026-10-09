@@ -1,9 +1,0 @@
-// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
-
-val x =
-1
-
-// CHECK:       {{.*}}/layout_body_unindented.cola:4:1: Parse error: expected indentation greater than 0 spaces
-// CHECK-NEXT:  1
-// CHECK-NEXT:  ^
-// CHECK-NEXT:  Parsing failed.

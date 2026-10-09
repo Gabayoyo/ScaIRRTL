@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-enum Unused:
-  case Bad(field: Missing)
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_declarations_unknown_enum_field.cola:4:3-27: Type error: Unknown type: Missing
-// CHECK-NEXT:  Program(List(EnumDecl(Unused,List(),List(EnumCase(Bad,List((field,TName(Missing,List()))))))),None)

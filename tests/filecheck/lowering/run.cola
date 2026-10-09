@@ -1,6 +1,0 @@
-// RUN: choco-opt -p convert-choco-to-mlir --run %s | filecheck %s
-// REQUIRES: mlir-opt, mlir-runner
-
-def main(): Int = 7
-
-// CHECK: 7

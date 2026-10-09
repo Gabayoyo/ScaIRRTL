@@ -1,7 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-def numeric[a](x: a): a = x + x
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_scope_generic_arithmetic.cola:3:27-32: Type error: Expected int or double in arithmetic, got TParam(a,1)
-// CHECK-NEXT:  Program(List(DefDecl(numeric,List(a),List((x,TName(a,List()))),TName(a,List()),BinOp(+,Var(x,Some(TParam(a,1))),Var(x,Some(TParam(a,1))),Some(TParam(a,1))))),None)

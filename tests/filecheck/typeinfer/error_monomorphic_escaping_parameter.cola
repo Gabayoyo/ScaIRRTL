@@ -1,8 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-val xs = Nil
-def escape[a](x: a): List[a] = xs
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_monomorphic_escaping_parameter.cola:3:10-13: Type error: Declared type parameter escapes its scope: TParam(a,2)
-// CHECK-NEXT:  Program(List(ValDecl(xs,Lit(NilLit,Some(TList(TParam(a,2)))),None), DefDecl(escape,List(a),List((x,TName(a,List()))),TList(TName(a,List())),Var(xs,Some(TList(TParam(a,2)))))),None)

@@ -1,9 +1,0 @@
-// RUN: choco-opt --dump-ast --parsing-diagnostics %s | filecheck %s
-
-val x = (1
-  + 2)
-
-// CHECK:       {{.*}}/layout_operator_delimited.cola:4:3: Parse error: expected ")"
-// CHECK-NEXT:    + 2)
-// CHECK-NEXT:    ^
-// CHECK-NEXT:  Parsing failed.

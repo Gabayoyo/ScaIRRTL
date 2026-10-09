@@ -1,9 +1,0 @@
-// RUN: choco-opt --dump-ast %s | filecheck %s
-
-// :: infers the list element type from the head and wraps the tail.
-val xs = 1 :: 2 :: Nil
-val bs = true :: false :: Nil
-
-// Head is TInt; tail becomes TList(TInt); result is TList(TInt).
-// CHECK: BinOp(::,Lit(IntLit(1),Some(TInt)),BinOp(::,Lit(IntLit(2),Some(TInt)),Lit(NilLit,Some(TList(TInt))),Some(TList(TInt))),Some(TList(TInt)))
-// CHECK: BinOp(::,Lit(BoolLit(true),Some(TBool)),BinOp(::,Lit(BoolLit(false),Some(TBool)),Lit(NilLit,Some(TList(TBool))),Some(TList(TBool))),Some(TList(TBool)))

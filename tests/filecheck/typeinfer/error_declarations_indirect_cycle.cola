@@ -1,9 +1,0 @@
-// RUN: choco-opt --parsing-diagnostics --dump-ast %s | filecheck %s
-
-type First = (Int, Second) => Int
-type Second = List[First]
-
-// CHECK:       Parsing succeeded.
-// CHECK-NEXT:  {{.*}}/error_declarations_indirect_cycle.cola:3:1-34: Type error: Cyclic type alias: Second
-// CHECK-NEXT:  {{.*}}/error_declarations_indirect_cycle.cola:4:1-26: Type error: Cyclic type alias: First
-// CHECK-NEXT:  Program(List(TypeDecl(First,TFun(List(TInt, TName(Second,List())),TInt)), TypeDecl(Second,TList(TName(First,List())))),None)

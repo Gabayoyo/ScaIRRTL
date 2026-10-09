@@ -1,8 +1,0 @@
-// RUN: choco-opt --dump-ast %s | filecheck %s
-
-def identity(x: Int): Int = x
-val function = identity
-(7)
-
-// CHECK: Parsing succeeded.
-// CHECK-NEXT: Program(List(DefDecl(identity,List(),List((x,TInt)),TInt,Var(x,Some(TInt))), ValDecl(function,Var(identity,Some(TFun(List(TInt),TInt))),None)),Some(Lit(IntLit(7),Some(TInt))))

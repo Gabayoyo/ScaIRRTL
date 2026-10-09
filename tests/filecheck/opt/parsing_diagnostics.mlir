@@ -1,4 +1,4 @@
-// RUN: choco-opt --parsing-diagnostics %s | filecheck %s
+// RUN: scairrtl-opt --parsing-diagnostics %s | filecheck %s
 
 this is not MLIR
 

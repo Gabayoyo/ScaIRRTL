@@ -1,6 +1,6 @@
-// RUN: choco-opt %s | filecheck %s --check-prefix=FILE
-// RUN: choco-opt < %s | filecheck %s --check-prefix=STDIN
-// RUN: choco-opt -g %s | filecheck %s --check-prefix=GENERIC
+// RUN: scairrtl-opt %s | filecheck %s --check-prefix=FILE
+// RUN: scairrtl-opt < %s | filecheck %s --check-prefix=STDIN
+// RUN: scairrtl-opt -g %s | filecheck %s --check-prefix=GENERIC
 
 builtin.module {
   %0 = "arith.constant"() <{value = 7 : i32}> : () -> i32
