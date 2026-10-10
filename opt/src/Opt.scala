@@ -7,6 +7,7 @@ import scair.print.AssemblyPrinter
 import scair.print.ErrorPrinter
 import scair.utils.*
 import scair.verify.Verifier
+import scairrtl.dialects.ScaIRRTLDialect
 import scopt.OParser
 
 import java.io.IOException
@@ -35,7 +36,7 @@ object Main:
 
   private val ctx = MLContext()
 
-  private val dialects = scair.dialects.allDialects
+  private val dialects = scair.dialects.allDialects :+ ScaIRRTLDialect
 
   private val passes = scair.passes.allPasses
 

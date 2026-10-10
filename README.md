@@ -5,9 +5,21 @@ a type-safe SSA-based IR framework for Scala 3 that is compatible with MLIR.
 
 ## Status
 
-The dialect is being defined. `dialects/src/ScaIRRTL.scala` holds its types and
-operations; `scairrtl-opt` already parses, verifies, prints, and transforms MLIR
-input through ScaIR.
+The dialect is at an early stage. `dialects/src/ScaIRRTL.scala` defines:
+
+- **Types** — `!scairrtl.uint<N>` and `!scairrtl.sint<N>`, each also spellable
+  without a width while that width is still uninferred, and `!scairrtl.clock`.
+- **Structure** — `scairrtl.circuit`, `scairrtl.module`, and `scairrtl.layer`,
+  each owning a body region and acting as a symbol table.
+- **Declarations and statements** — `scairrtl.wire` and
+  `scairrtl.matchingconnect`.
+- **Expressions** — `scairrtl.add`.
+
+Generic assembly is the only syntax for now: every operation parses, verifies,
+prints, and round-trips through `scairrtl-opt`, but none has custom assembly.
+Definitions carry trailing comment blocks recording what each operation still
+lacks, tagged `[BLOCKING]`, `[HIGH]`, or `[TODO]`; see
+[AGENTS.md](AGENTS.md#recording-what-an-operation-still-lacks).
 
 ## Building and running
 

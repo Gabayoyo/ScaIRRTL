@@ -76,6 +76,7 @@ opt/
 tests/
   filecheck/
     lit.cfg              # scairrtl-opt substitution, SCAIRRTL_OPT override, MLIR features
+    dialects/            # Dialect IR: types, structure, declarations, statements
     opt/                 # Driver behavior, MLIR input handling, and execution
 ```
 
@@ -131,23 +132,90 @@ verified, run through the selected passes, then printed or executed.
 ScaIRRTL follows ScaIR's derivation style rather than a tablegen-style DSL.
 
 - **Types** are case classes deriving `DerivedAttribute["scairrtl.<name>"]` and
-  implementing `AttrDefs`. A sealed trait over a type family lets operations
-  accept several related types, and a shared instance can be exposed as a value
-  for convenience.
+  implementing `AttrDefs`, mixed with a family trait (such as `RTLType`) so
+  operations can accept several related types. Family traits nest where one
+  narrows another: `IntType` is the two integer types out of `RTLType`.
+  `TypeAttribute` makes them print with a leading `!`.
 - **Operations** are case classes deriving `DerivedOperation["scairrtl.<name>"]`
   and implementing `OpDefs`, with operands, results, attributes, and regions
   declared as constructor fields. Stateless operations mix in ScaIR's effect
   traits so canonicalization and folding can reason about them.
+- **Enums** are integer-backed: `enum X(name: String) extends I32Enum(name)` with
+  one `case` per variant, used directly as an operation property. They print as
+  ordinals in generic assembly, which only a custom op syntax can turn back into
+  keywords.
+- **Constructor field types decide the construct.** `Operand[T]` and `Result[T]`
+  are operands and results, `Region` is a region, `Seq[Operand[T]]` is variadic,
+  and every remaining field is a property. A derived attribute parameter must
+  itself be an attribute: an `Option` field does not compile there, so an
+  uninferred value gets a sentinel (`unknownWidth`) as ScaIR does for dynamic
+  dimensions.
+- **`Operand[T]` and `Result[T]` bounds are never verified.** ScaIR checks a
+  declared operand or result type against the actual type nowhere, for a
+  concrete class, a trait, or a union alike, so a wrong type verifies happily.
+  The bound documents intent and types the Scala API; only a trait's
+  `traitVerify` enforces anything at the IR level, so a constraint that must
+  hold needs a companion trait — `IntTypeOperandsAndResult` is that companion
+  for `AddOp`'s `IntType`, and the reason `IntType` is a trait rather than a
+  union alias, which no runtime check can test.
+- **`name` is reserved by `Operation`**, which uses it for the dialect-qualified
+  operation name, so no operation may declare a field called `name`; the field
+  is a compile error, not a shadowing warning. CIRCT's fields with that name,
+  the circuit's and a wire's, are spelled `sym_name` here.
 - Every type and operation is listed in the `summonDialect` tuple, which produces
   the dialect value registered with the context. A definition missing from that
   tuple is not part of the dialect.
-- Generic assembly is the default. Custom printing and parsing are opt-in through
-  `customPrint(p: Printer)` plus a `given AttributeCustomParser[T]` or the
-  operation equivalent; reach for them only where the default spelling cannot
-  express the syntax.
+- Generic assembly is the default. Custom printing and parsing are opt-in
+  and must be provided together: `customPrint(p: Printer)` plus a
+  `given AttributeCustomParser[T]`, or `given OperationCustomParser[T]` for
+  operations. Custom printing alone breaks round-tripping.
 - Operations carry source locations through `Operation.location` /
   `Operation.at`. Stamp every operation built from a source node, and keep
   synthesized operations at `UnknownLoc`.
+
+### Property shape and absence
+
+How a property is declared decides what happens when the input omits it. A
+non-`Option` field falls back to its Scala default; with no default, omission
+fails verification with a message that names the type as a macro object rather
+than a type. An `Option[T]` field is always `None` when absent — its
+`defaultValue` is never consulted, so an optional property cannot carry a
+non-`None` default — and an enum property cannot have a default at all, which is
+why optional enums are declared `Option[E]`.
+
+Choose the shape from the meaning:
+
+- **Bare, required** — omitting it means malformed IR, either because the field
+  is part of the operation's identity or because the CIRCT declaration it mirrors
+  says so. ScaIR's loop bounds, switch cases, and IRDL names are the first kind;
+  the module's six port arrays are the second, and four of those are metadata
+  that CIRCT nonetheless declares required.
+- **`Option[T] = None`** — absence is meaningful and must stay distinguishable
+  from empty. ScaIR's `scf.forall` mapping is the example, and the layer arrays
+  on `CircuitOp` follow it. It is also the only way to make an enum property
+  omittable, since enums cannot be defaulted.
+- **Default value** — the value is neutral metadata. ScaIR's own dialects do not
+  default array properties, so a defaulted array such as `annotations` mirrors
+  CIRCT's `DefaultValuedAttr<..., "{}">` rather than local convention.
+
+### Recording what an operation still lacks
+
+Every operation carries a trailing comment block naming what is missing,
+ordered by how badly it is needed. Keep the tags meaningful: `[BLOCKING]` marks
+something the operation cannot verify or be used without, `[HIGH]` marks
+semantics that are wrong or unenforced until it exists, and `[TODO]` marks
+absent conveniences and interfaces.
+
+These blocks list only what is *still* missing, so delete an entry in the same
+change that resolves it. An entry describing a field or trait that now exists
+reads as a live defect and is worse than no entry at all: it makes a working
+operation look unusable. An operation whose `[BLOCKING]` entries are unresolved
+is genuinely not usable, so resolve those before building on it.
+
+Structural traits that ScaIR lacks (`SingleBlock`, `NoRegionArguments`,
+`SameTypeOperands`, and friends) are defined locally at the top of the dialect
+file so an operation can still enforce them. They are marked for upstreaming to
+`scair.ir`, where they belong.
 
 ## Testing
 
