@@ -13,3 +13,4 @@ tests/filecheck/.lit_test_times.txt
 # ScaIRRTL-specific
 /test-files
 .scala-build
+.DS_Store

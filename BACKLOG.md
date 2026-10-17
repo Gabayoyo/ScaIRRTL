@@ -11,23 +11,25 @@ and tests as appropriate.
 
 ## Width inference
 
-**Problem:** `scairrtl.add` requires its result type to be written by hand.
-FIRRTL sizes the result at `max(w1, w2) + 1`, propagates an uninferred width when
-either operand's width is unknown, and takes the left operand's signedness.
-Nothing derives or checks any of that today.
+**Problem:** `InfersResultTypes` derives and checks result types for the one
+arithmetic operation that exists. The sibling primitives will each need their own
+rule: `mul` widens by summing the operand widths, `sub` and `add` share theirs,
+and comparisons produce a one-bit unsigned result.
 
-**Known constraints:** CIRCT expresses this through `InferTypeOpInterface` and an
-`inferReturnType` hook; ScaIR has no equivalent, and `OpDefs` exposes no
-inference point. `unknownWidth` already marks an uninferred width. See
+**Known constraints:** ScaIR has no inference interface and `OpDefs` exposes no
+inference point, so `InfersResultTypes` is a dialect-local convention whose only
+consumer is its own verifier. Nothing outside the dialect can ask an operation
+for its result types. `unknownWidth` marks an uninferred width, and
+`AddOp.inferResultTypes` propagates it rather than guessing. See
 [ScaIRRTL.scala](dialects/src/ScaIRRTL.scala).
 
-**Decisions needed:** Choose where inference runs — as a trait on the operation,
-as a pass, or as a verifier that only checks a written type — and how an
-uninferred width propagates through a chain of operations.
+**Decisions needed:** Whether to upstream the inference hook so passes can use it,
+and how an uninferred width should resolve once a pass is responsible for it
+rather than the author.
 
-**Completion:** Derive the result width for the implemented primitives, keep an
-unknown input width from producing a wrong answer, and cover both known- and
-unknown-width operands with IR fixtures.
+**Completion:** Add the width rule for each primitive as it lands, covered by a
+fixture for known and uninferred widths — `arithmetic.mlir` and
+`unsized_add.mlir` are the pattern.
 
 ## Module port wiring
 
@@ -54,21 +56,35 @@ mismatched arities.
 so operations either define them locally or leave the behaviour unenforced. The
 trailing comment blocks on each operation name them.
 
-**Known constraints:** `SingleBlock`, `NoRegionArguments`, `HasParent`, and
-`SameTypeOperands` are implemented locally at the top of
-[ScaIRRTL.scala](dialects/src/ScaIRRTL.scala) so operations can enforce them.
-Still absent: a `ParentOneOf` variant for a layer or wire, `ForceableOpInterface`
-whose verifier gives `forceable` meaning, `FNamableOpInterface`,
-`InnerSymbolOpInterface` with the `inner_sym` attribute it needs,
-`SymbolUserOpInterface`, `OpAsmOpInterface`, and `SymbolName`/`SymbolVisibility`.
+**Known constraints:** ScaIR has no op-interface system: an interface becomes a
+Scala trait, and its abstract members are the interface methods. Implemented in
+[ScaIRRTL.scala](dialects/src/ScaIRRTL.scala): `SingleBlock`,
+`NoRegionArguments`, `HasParent`, `SameTypeOperands`, `SymbolName`,
+`SymbolVisibility`, `SymbolUserOpInterface`, `InfersResultTypes`,
+`SameOperandsIntTypeKind`, and `IntTypeOperandsAndResult`.
 
-**Decisions needed:** Decide which of these are general enough to upstream into
-`scair.ir` and which belong to the dialect, then keep them out of the operation
-bodies either way.
+Still absent, all CIRCT- or FIRRTL-specific: `ForceableOpInterface`, whose
+verifier is what gives `forceable` meaning; `FNamableOpInterface`;
+`InnerSymbolOpInterface` and `InnerSymbolTable` with the `inner_sym` attribute
+they need; `InnerRefNamespace`; `FConnectLike`, `FModuleLike`, `PortList`, and
+`InstanceGraphModuleOpInterface`.
 
-**Completion:** Implement the ones an operation cannot be used correctly without,
-upstream the structural ones, and remove them from the corresponding comment
-blocks.
+**Not expressible at all:** `OpAsmOpInterface` and `HasCustomSSAName`.
+`AssemblyPrinter` assigns SSA names itself and consults no hook, so no trait can
+influence them. The module's entry-block arguments depend on this.
+
+**Gaps these traits work around:** `Operand[T]`/`Result[T]` bounds are never
+verified, which is why `InfersResultTypes` and `IntTypeOperandsAndResult` check
+by hand; and `SymbolTable.lookupSymbol` throws once it runs out of symbol tables
+instead of reporting an undefined symbol, which is why `SymbolUserOpInterface`
+resolves references itself.
+
+**Decisions needed:** Whether to report the printing hook, symbol lookup, and
+type-constraint verification upstream, carry them as a patch, or keep working
+around them.
+
+**Completion:** Implement the CIRCT-specific ones as the operations that need
+them land, and remove each from the corresponding comment block.
 
 ## Remaining types
 
@@ -96,14 +112,15 @@ enables or disables, but nothing puts code inside a layer.
 **Known constraints:** CIRCT pairs `firrtl.layer` with `firrtl.layerblock`,
 which carries a `SymbolRefAttr` to its layer and may nest in a module, another
 layer block, a `when`, or a `match`. It also has a `LayerSpecialization` value
-that selects a layer's default enablement. The parent constraint is a set rather
-than a single operation, which the local `HasParent` cannot express.
+that selects a layer's default enablement. The parent constraint is a set, which
+`HasParent` already expresses, so the layer block only needs its set widened and
+`WireOp`'s extended to the same kinds.
 
-**Decisions needed:** Choose whether to implement the parent-set constraint
-before adding the layer block, and how far the layer subsystem needs to go for
-the dialect's purpose.
+**Decisions needed:** How far the layer subsystem needs to go for the dialect's
+purpose, and whether a layer block needs its own parent set distinct from
+`WireOp`'s.
 
-**Completion:** Implement the layer block and its parent constraint, and cover
+**Completion:** Implement the layer block and widen both parent sets, and cover
 nesting, an undefined layer reference, and a layer whose specialization is
 disabled.
 

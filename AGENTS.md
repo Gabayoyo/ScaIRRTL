@@ -212,10 +212,59 @@ reads as a live defect and is worse than no entry at all: it makes a working
 operation look unusable. An operation whose `[BLOCKING]` entries are unresolved
 is genuinely not usable, so resolve those before building on it.
 
-Structural traits that ScaIR lacks (`SingleBlock`, `NoRegionArguments`,
-`SameTypeOperands`, and friends) are defined locally at the top of the dialect
-file so an operation can still enforce them. They are marked for upstreaming to
-`scair.ir`, where they belong.
+### Traits are ScaIR's interfaces
+
+ScaIR has no op-interface system. An MLIR op interface and an MLIR structural
+trait become the same Scala construct — a `trait ... extends Operation` — because
+a trait supplies both the verifier (`traitVerify`) and the `isInstanceOf`
+dispatch that generic code uses. ScaIR's own source says so: `LoopLike` is
+documented as "`LoopLikeOpInterface`, reduced to what code motion needs", and
+`ConditionallySpeculatable` is a method-carrying trait standing in for the MLIR
+interface of the same name. Abstract members (`def sym_name: StringData`) are how
+an interface declares its methods; a companion `unapply`, as on `ConstantLike`,
+is how a trait is queried.
+
+Two MLIR interface capabilities do **not** survive the translation:
+
+- **Traits cannot influence printing or parsing.** ScaIR's printer assigns SSA
+  names itself and consults no hook, so `OpAsmOpInterface` and
+  `HasCustomSSAName` have no trait form. They need a change in ScaIR.
+- **An interface cannot be retrofitted** onto an operation defined elsewhere, and
+  there is no runtime registry to ask which operations implement one. A trait
+  must be mixed in at the operation's definition.
+
+`HasParent` is set-valued, mirroring upstream rather than the two-trait shape it
+first appears to have: MLIR declares `HasParent<string op>` and
+`ParentOneOf<list<string> ops>` as separate TableGen classes, but both emit the
+same variadic native `HasParent<...>` trait, and the diagnostic branches on arity
+to say "parent op 'X'" for one parent and "parent op to be one of 'X, Y'" for
+several. This trait is that one trait.
+
+Two traits exist because ScaIR does not verify what a definition declares:
+`Operand[T]`/`Result[T]` bounds are never checked, so `InfersResultTypes` checks
+declared results against inferred ones, and `SymbolUserOpInterface` resolves
+references itself because `SymbolTable.lookupSymbol` throws rather than reporting
+an undefined symbol.
+
+## Comments
+
+A comment is about the code it sits next to. If it is not about that code, it
+does not belong in the file.
+
+- **No history, no rationale, no comparison.** Never record what the code used to
+  do, why a choice was made, or how it differs from MLIR, CIRCT, or another
+  source — no "was", "used to", "no longer", "now that", "unlike", "matching
+  CIRCT's". Design rationale and upstream comparison belong in this file or
+  `BACKLOG.md`.
+- **Self-contained.** Nothing may depend on the conversation, a request, a
+  review, a person, or a ticket to make sense.
+- **No commented-out code.** Delete it. A `[TODO]` entry is how an absence gets
+  recorded, and a commented-out line beside it says the same thing twice.
+- **Short, and about what rather than how.** A doc comment above a function or
+  method is one or two lines saying what it is or does. Anything about how the
+  code works belongs in single-line comments inside the body.
+- One sanctioned exception: the per-operation `[TODO]`/`[HIGH]`/`[BLOCKING]`
+  blocks, which stay multi-line and still describe only the present state.
 
 ## Testing
 
