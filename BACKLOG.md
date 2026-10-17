@@ -61,7 +61,7 @@ Scala trait, and its abstract members are the interface methods. Implemented in
 [ScaIRRTL.scala](dialects/src/ScaIRRTL.scala): `SingleBlock`,
 `NoRegionArguments`, `HasParent`, `SameTypeOperands`, `SymbolName`,
 `SymbolVisibility`, `SymbolUserOpInterface`, `InfersResultTypes`,
-`SameOperandsIntTypeKind`, and `IntTypeOperandsAndResult`.
+`SameOperandsIntTypeKind`, `OneBitOperands`, and `BitsSelectionRange`.
 
 Still absent, all CIRCT- or FIRRTL-specific: `ForceableOpInterface`, whose
 verifier is what gives `forceable` meaning; `FNamableOpInterface`;
@@ -74,8 +74,9 @@ they need; `InnerRefNamespace`; `FConnectLike`, `FModuleLike`, `PortList`, and
 influence them. The module's entry-block arguments depend on this.
 
 **Gaps these traits work around:** `Operand[T]`/`Result[T]` bounds are never
-verified, which is why `InfersResultTypes` and `IntTypeOperandsAndResult` check
-by hand; and `SymbolTable.lookupSymbol` throws once it runs out of symbol tables
+verified, which is why `OperandAndResultTypes` and `InfersResultTypes` check by
+hand; and an `IntData` typed property prints in a form that does not parse back,
+so numeric properties have to be `IntegerAttr`; and `SymbolTable.lookupSymbol` throws once it runs out of symbol tables
 instead of reporting an undefined symbol, which is why `SymbolUserOpInterface`
 resolves references itself.
 

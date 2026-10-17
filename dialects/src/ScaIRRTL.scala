@@ -122,6 +122,34 @@ trait SymbolUserOpInterface extends Operation:
         )
     checked.flatMap(_ => super.traitVerify())
 
+/** The class each operand and result must be: operands first, then results. */
+trait OperandAndResultTypes extends Operation:
+
+  /** The required class of each operand, then of each result. */
+  def operandResultTypes: Seq[Class[? <: Attribute]]
+
+  override def traitVerify(): OK[Operation] =
+    val actual = (operands ++ results).map(_.typ)
+    val expected = operandResultTypes
+    val found =
+      if actual.length != expected.length then
+        Seq(
+          s"${actual.length} operands and results, expected ${expected.length}"
+        )
+      else
+        actual.zip(expected).collect {
+          case (value, required) if !required.isInstance(value) =>
+            s"${value.name}, expected ${required.getSimpleName}"
+        }
+    val checked =
+      if found.isEmpty then OK(this)
+      else
+        Err(
+          s"Operation '$name' has ill-typed operands or results: " +
+            found.mkString(", ")
+        )
+    checked.flatMap(_ => super.traitVerify())
+
 /** The declared results must match the types this operation infers.
   */
 trait InfersResultTypes extends Operation:
@@ -190,20 +218,56 @@ trait SameOperandsIntTypeKind extends Operation:
       else Err(s"Operands of '$name' must be all UInt or all SInt")
     checked.flatMap(_ => super.traitVerify())
 
-/** Every operand and result is an integer type. */
-trait IntTypeOperandsAndResult extends Operation:
+/** The listed operand positions hold a `UInt` of at most one bit, or one whose
+  * width is uninferred, which is what a select or a reset may be.
+  */
+trait OneBitOperands extends Operation:
+
+  /** Operand positions that must hold a one-bit or unsized `UInt`. */
+  def oneBitOperands: Seq[Int]
 
   override def traitVerify(): OK[Operation] =
-    val offending = (operands ++ results).map(_.typ)
-      .filterNot(_.isInstanceOf[IntType])
+    val offending = oneBitOperands.filter { index =>
+      operands.lift(index).map(_.typ) match
+        case Some(UIntType(width)) => width.value > 1
+        case _                     => true
+    }
     val checked =
       if offending.isEmpty then OK(this)
       else
         Err(
-          s"Operands and results of '$name' must be integer types, got " +
-            offending.map(_.name).mkString(", ")
+          s"Operation '$name' needs a one-bit UInt at operand " +
+            offending.mkString(", ")
         )
     checked.flatMap(_ => super.traitVerify())
+
+/** A `bits` selection is ordered, non-negative, and inside the input width. */
+trait BitsSelectionRange extends Operation:
+
+  def input: Operand[IntType]
+  def hi: IntegerAttr
+  def lo: IntegerAttr
+
+  override def traitVerify(): OK[Operation] =
+    val (high, low) = (hi.value.value, lo.value.value)
+    val width: BigInt = input.typ match
+      case t: UIntType => t.width.value
+      case t: SIntType => t.width.value
+      case _           => BigInt(-1)
+    val problem =
+      if low < 0 || high < low then Some(s"$high to $low is not a valid range")
+      else if width >= 0 && high >= width then
+        Some(s"$high to $low exceeds the $width-bit input")
+      else None
+    val checked = problem match
+      case None      => OK(this)
+      case Some(why) => Err(s"Operation '$name' has a bad bits range: $why")
+    checked.flatMap(_ => super.traitVerify())
+
+/** The wider of two widths, or uninferred when either is unknown. */
+private def widerWidth(left: IntData, right: IntData): IntData =
+  if left.value < 0 || right.value < 0 then unknownWidth
+  else IntData(left.value.max(right.value))
 
 /*≡==--==≡≡≡≡≡≡≡≡≡≡≡==--=≡≡*\
 ||         ENUMS           ||
@@ -407,6 +471,59 @@ case class WireOp(
   //        meaningful; FNamableOpInterface, OpAsmOpInterface (CIRCT's
   //        HasCustomSSAName), InnerSymbolOpInterface, SymbolUserOpInterface
 
+/** A register clocked by `clock`, holding its value across cycles. */
+case class RegOp(
+    result: Result[IntType],
+    clock: Operand[ClockType],
+    sym_name: StringData,
+    nameKind: NameKindEnum,
+    annotations: ArrayAttribute[Attribute],
+    forceable: Option[UnitAttr] = None,
+) extends DerivedOperation["scairrtl.reg"]
+    with OperandAndResultTypes
+    with HasParent derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[ClockType], classOf[IntType])
+
+  def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
+
+  // [TODO] the result type has no reset value to infer from, so a wrong width
+  //        goes unchecked.
+
+/** A register clocked by `clock` that resets to `init` while `reset` is set. */
+case class RegResetOp(
+    result: Result[IntType],
+    clock: Operand[ClockType],
+    reset: Operand[UIntType],
+    init: Operand[IntType],
+    sym_name: StringData,
+    nameKind: NameKindEnum,
+    annotations: ArrayAttribute[Attribute],
+    forceable: Option[UnitAttr] = None,
+) extends DerivedOperation["scairrtl.regreset"]
+    with OperandAndResultTypes
+    with OneBitOperands
+    with InfersResultTypes
+    with HasParent derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(
+      classOf[ClockType],
+      classOf[UIntType],
+      classOf[IntType],
+      classOf[IntType],
+    )
+
+  def oneBitOperands: Seq[Int] = Seq(1)
+
+  def inferResultTypes: Seq[Attribute] = Seq(init.typ)
+
+  def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
+
+  // [TODO] Chisel emits `firrtl.random_init_start` on every register as a
+  //        discardable attribute; there is nowhere to declare it here.
+
 /** Connects two values whose types must match exactly. */
 case class MatchingConnectOp(
     dest: Operand[RTLType],
@@ -426,6 +543,119 @@ private def addedWidth(left: IntData, right: IntData): IntData =
   if left.value < 0 || right.value < 0 then unknownWidth
   else IntData(left.value.max(right.value) + 1)
 
+/** A constant of the given integer type. */
+case class ConstantOp(
+    value: IntegerAttr,
+    result: Result[IntType],
+) extends DerivedOperation["scairrtl.constant"]
+    with Pure
+    with OperandAndResultTypes
+    with ConstantLike(value) derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] = Seq(classOf[IntType])
+
+/** Selects `high` when `cond` is set, and `low` otherwise. */
+case class MuxOp(
+    cond: Operand[UIntType],
+    high: Operand[IntType],
+    low: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["scairrtl.mux"]
+    with Pure
+    with OperandAndResultTypes
+    with OneBitOperands
+    with InfersResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[UIntType], classOf[IntType], classOf[IntType], classOf[IntType])
+
+  def oneBitOperands: Seq[Int] = Seq(0)
+
+  def inferResultTypes: Seq[Attribute] =
+    (high.typ, low.typ) match
+      case (h: UIntType, l: UIntType) =>
+        Seq(UIntType(widerWidth(h.width, l.width)))
+      case (h: SIntType, l: SIntType) =>
+        Seq(SIntType(widerWidth(h.width, l.width)))
+      // Mismatched signedness is not this check's business.
+      case _ => results.map(_.typ)
+
+/** Extracts bits `hi` through `lo`; the result is unsigned, `hi - lo + 1` wide.
+  */
+case class BitsOp(
+    input: Operand[IntType],
+    hi: IntegerAttr,
+    lo: IntegerAttr,
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.bits"]
+    with Pure
+    with OperandAndResultTypes
+    with BitsSelectionRange
+    with InfersResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(UIntType(IntData(hi.value.value - lo.value.value + 1)))
+
+/** Compares two integers, producing a one-bit unsigned result. */
+sealed trait ComparisonOp
+    extends Operation
+    with SameOperandsIntTypeKind
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] = Seq(UIntType(IntData(1)))
+
+case class EqOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.eq"]
+    with ComparisonOp
+    with Commutative derives OpDefs
+
+case class NeqOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.neq"]
+    with ComparisonOp
+    with Commutative derives OpDefs
+
+case class LtOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.lt"]
+    with ComparisonOp derives OpDefs
+
+case class LeqOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.leq"]
+    with ComparisonOp derives OpDefs
+
+case class GtOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.gt"]
+    with ComparisonOp derives OpDefs
+
+case class GeqOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["scairrtl.geq"]
+    with ComparisonOp derives OpDefs
+
 /** Adds two integers of the same signedness. */
 case class AddOp(
     lhs: Operand[IntType],
@@ -436,7 +666,10 @@ case class AddOp(
     with Commutative
     with Pure
     with InfersResultTypes
-    with IntTypeOperandsAndResult derives OpDefs:
+    with OperandAndResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[IntType])
 
   def inferResultTypes: Seq[Attribute] =
     (lhs.typ, rhs.typ) match
@@ -457,7 +690,18 @@ val ScaIRRTLDialect: Dialect = summonDialect[
       ModuleOp,
       LayerOp,
       WireOp,
+      RegOp,
+      RegResetOp,
       MatchingConnectOp,
+      ConstantOp,
+      MuxOp,
+      BitsOp,
+      EqOp,
+      NeqOp,
+      LtOp,
+      LeqOp,
+      GtOp,
+      GeqOp,
       AddOp,
   ),
 ]

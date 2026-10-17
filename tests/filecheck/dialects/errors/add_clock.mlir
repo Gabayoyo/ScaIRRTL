@@ -19,7 +19,7 @@ builtin.module {
 // CHECK-NEXT:        %1 = "scairrtl.wire"() <{sym_name = "d", nameKind = 0 : i32, annotations = []}> : () -> !scairrtl.clock
 // CHECK-NEXT:        %2 = "scairrtl.add"(%0, %1) : (!scairrtl.clock, !scairrtl.clock) -> !scairrtl.clock
 // CHECK-NEXT:        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-// CHECK-NEXT:        > Operands and results of 'scairrtl.add' must be integer types, got scairrtl.clock, scairrtl.clock, scairrtl.clock
+// CHECK-NEXT:        > Operation 'scairrtl.add' has ill-typed operands or results: scairrtl.clock, expected IntType, scairrtl.clock, expected IntType, scairrtl.clock, expected IntType
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }) : () -> ()

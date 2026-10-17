@@ -155,9 +155,10 @@ ScaIRRTL follows ScaIR's derivation style rather than a tablegen-style DSL.
   concrete class, a trait, or a union alike, so a wrong type verifies happily.
   The bound documents intent and types the Scala API; only a trait's
   `traitVerify` enforces anything at the IR level, so a constraint that must
-  hold needs a companion trait — `IntTypeOperandsAndResult` is that companion
-  for `AddOp`'s `IntType`, and the reason `IntType` is a trait rather than a
-  union alias, which no runtime check can test.
+  hold needs a companion trait. `OperandAndResultTypes` is that companion: it
+  takes the required class of every operand and result, which is also why
+  `IntType` is a trait rather than a union alias — no runtime check can test a
+  union.
 - **`name` is reserved by `Operation`**, which uses it for the dialect-qualified
   operation name, so no operation may declare a field called `name`; the field
   is a compile error, not a shadowing warning. CIRCT's fields with that name,
@@ -194,6 +195,9 @@ Choose the shape from the meaning:
   from empty. ScaIR's `scf.forall` mapping is the example, and the layer arrays
   on `CircuitOp` follow it. It is also the only way to make an enum property
   omittable, since enums cannot be defaulted.
+- **`IntData` does not work as a property.** It prints as `0 : i64` and that
+  form does not parse back, so a round-trip fails. Use `IntegerAttr` for a
+  numeric property and read the number with `.value.value`.
 - **Default value** — the value is neutral metadata. ScaIR's own dialects do not
   default array properties, so a defaulted array such as `annotations` mirrors
   CIRCT's `DefaultValuedAttr<..., "{}">` rather than local convention.
