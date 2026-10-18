@@ -264,10 +264,28 @@ trait BitsSelectionRange extends Operation:
       case Some(why) => Err(s"Operation '$name' has a bad bits range: $why")
     checked.flatMap(_ => super.traitVerify())
 
+/** Compares two integers, producing a one-bit unsigned result. */
+sealed trait ComparisonOp
+    extends Operation
+    with SameOperandsIntTypeKind
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] = Seq(UIntType(IntData(1)))
+
 /** The wider of two widths, or uninferred when either is unknown. */
 private def widerWidth(left: IntData, right: IntData): IntData =
   if left.value < 0 || right.value < 0 then unknownWidth
   else IntData(left.value.max(right.value))
+
+/** One bit past the wider operand, or uninferred when either input is. */
+private def addedWidth(left: IntData, right: IntData): IntData =
+  if left.value < 0 || right.value < 0 then unknownWidth
+  else IntData(left.value.max(right.value) + 1)
 
 /*≡==--==≡≡≡≡≡≡≡≡≡≡≡==--=≡≡*\
 ||         ENUMS           ||
@@ -538,11 +556,6 @@ case class MatchingConnectOp(
 // [TODO]     FConnectLike, parent constraints
 // [TODO]     ConnectOp, the permissive sibling
 
-/** One bit past the wider operand, or uninferred when either input is. */
-private def addedWidth(left: IntData, right: IntData): IntData =
-  if left.value < 0 || right.value < 0 then unknownWidth
-  else IntData(left.value.max(right.value) + 1)
-
 /** A constant of the given integer type. */
 case class ConstantOp(
     value: IntegerAttr,
@@ -598,19 +611,6 @@ case class BitsOp(
 
   def inferResultTypes: Seq[Attribute] =
     Seq(UIntType(IntData(hi.value.value - lo.value.value + 1)))
-
-/** Compares two integers, producing a one-bit unsigned result. */
-sealed trait ComparisonOp
-    extends Operation
-    with SameOperandsIntTypeKind
-    with Pure
-    with OperandAndResultTypes
-    with InfersResultTypes:
-
-  def operandResultTypes: Seq[Class[? <: Attribute]] =
-    Seq(classOf[IntType], classOf[IntType], classOf[UIntType])
-
-  def inferResultTypes: Seq[Attribute] = Seq(UIntType(IntData(1)))
 
 case class EqOp(
     lhs: Operand[IntType],
