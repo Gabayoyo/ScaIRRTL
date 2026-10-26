@@ -36,9 +36,11 @@ ScaIRRTL is an RTL (register-transfer level) dialect for
 Scala 3 that is compatible with MLIR. It is written in Scala 3 using the
 [Mill](https://mill-build.org/) build tool.
 
-The repository owns the `scairrtl.*` dialect — its types, operations, and
-assembly — and the `scairrtl-opt` driver that parses, verifies, transforms, and
-prints IR built from it.
+The repository owns the Scala implementation of the `firrtl.*` dialect — its
+types, operations, and assembly — and the `scairrtl-opt` driver that parses,
+verifies, transforms, and prints IR built from it. The namespace mirrors CIRCT's
+FIRRTL dialect while the Scala package remains `scairrtl`; attribute spellings
+and module port block arguments still differ from CIRCT's schema.
 
 ## Build commands
 
@@ -69,7 +71,7 @@ The `format` command runs both scalafix (lint/rewrite) and scalafmt on all modul
 build.mill               # Mill build definition
 dialects/
   src/
-    ScaIRRTL.scala       # scairrtl.* types and operations
+    ScaIRRTL.scala       # firrtl.* types and operations
 opt/
   src/
     Opt.scala            # scairrtl.main.Main: scopt-based scairrtl-opt CLI
@@ -88,7 +90,7 @@ invoking lit. Conversion passes get their own module when lowering work begins.
 - **ScaIR** — SSA-based, MLIR-inspired IR framework, pulled from Sonatype
   snapshots. `dialects` depends on `scair-core` and the Arith, Func, and SCF
   dialect libraries; `opt` adds `scair-passes`. The repository defines
-  `scairrtl.*` types and operations on top of it; see
+  `firrtl.*` types and operations on top of it; see
   [docs](https://edin-dal.github.io/scair).
 - **scopt** — command-line argument parsing in `opt/`.
 - **mill-scalafix** — scalafix is wired into the `ScaIRRTLModule` trait and runs
@@ -131,12 +133,12 @@ verified, run through the selected passes, then printed or executed.
 
 ScaIRRTL follows ScaIR's derivation style rather than a tablegen-style DSL.
 
-- **Types** are case classes deriving `DerivedAttribute["scairrtl.<name>"]` and
+- **Types** are case classes deriving `DerivedAttribute["firrtl.<name>"]` and
   implementing `AttrDefs`, mixed with a family trait (such as `RTLType`) so
   operations can accept several related types. Family traits nest where one
   narrows another: `IntType` is the two integer types out of `RTLType`.
   `TypeAttribute` makes them print with a leading `!`.
-- **Operations** are case classes deriving `DerivedOperation["scairrtl.<name>"]`
+- **Operations** are case classes deriving `DerivedOperation["firrtl.<name>"]`
   and implementing `OpDefs`, with operands, results, attributes, and regions
   declared as constructor fields. Stateless operations mix in ScaIR's effect
   traits so canonicalization and folding can reason about them.

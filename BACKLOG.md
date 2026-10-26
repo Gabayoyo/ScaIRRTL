@@ -107,7 +107,7 @@ use, plus fixtures that round-trip a sized and an unsized spelling.
 
 ## Layers
 
-**Problem:** `scairrtl.layer` defines a layer, and the circuit can name layers it
+**Problem:** `firrtl.layer` defines a layer, and the circuit can name layers it
 enables or disables, but nothing puts code inside a layer.
 
 **Known constraints:** CIRCT pairs `firrtl.layer` with `firrtl.layerblock`,
@@ -127,7 +127,7 @@ disabled.
 
 ## Sibling primitives
 
-**Problem:** `scairrtl.add` is the only arithmetic operation, and there is no
+**Problem:** `firrtl.add` is the only arithmetic operation, and there is no
 permissive `connect` for it to be distinguished from.
 
 **Known constraints:** CIRCT's FIRRTL primitives share the same operand shape:

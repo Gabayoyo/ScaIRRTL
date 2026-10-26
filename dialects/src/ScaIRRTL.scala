@@ -329,11 +329,11 @@ val unknownWidth: IntData = IntData(-1)
   */
 final case class UIntType(width: IntData = unknownWidth)
     extends IntType
-    with DerivedAttribute["scairrtl.uint"] derives AttrDefs:
+    with DerivedAttribute["firrtl.uint"] derives AttrDefs:
 
   override def customPrint(p: Printer) =
-    if width.value < 0 then p.print("!scairrtl.uint")
-    else p.print("!scairrtl.uint<", width.value.toString, ">")
+    if width.value < 0 then p.print("!firrtl.uint")
+    else p.print("!firrtl.uint<", width.value.toString, ">")
 
 object UIntType:
 
@@ -348,11 +348,11 @@ object UIntType:
 /** A signed two's-complement integer of `width` bits. */
 final case class SIntType(width: IntData = unknownWidth)
     extends IntType
-    with DerivedAttribute["scairrtl.sint"] derives AttrDefs:
+    with DerivedAttribute["firrtl.sint"] derives AttrDefs:
 
   override def customPrint(p: Printer) =
-    if width.value < 0 then p.print("!scairrtl.sint")
-    else p.print("!scairrtl.sint<", width.value.toString, ">")
+    if width.value < 0 then p.print("!firrtl.sint")
+    else p.print("!firrtl.sint<", width.value.toString, ">")
 
 object SIntType:
 
@@ -367,7 +367,7 @@ object SIntType:
 /** The clock signal type. */
 final case class ClockType()
     extends RTLType
-    with DerivedAttribute["scairrtl.clock"] derives AttrDefs
+    with DerivedAttribute["firrtl.clock"] derives AttrDefs
 
 // [TODO]     AnalogType, ResetType, AsyncResetType, RefType, and the aggregate
 //            types (BundleType, FVectorType, FEnumType). RefType is required
@@ -383,7 +383,7 @@ case class CircuitOp(
     enable_layers: Option[ArrayAttribute[SymbolRefAttr]] = None,
     disable_layers: Option[ArrayAttribute[SymbolRefAttr]] = None,
     select_inst_choice: Option[ArrayAttribute[Attribute]] = None,
-) extends DerivedOperation["scairrtl.circuit"]
+) extends DerivedOperation["firrtl.circuit"]
     with IsolatedFromAbove
     with SymbolTable
     with SingleBlock
@@ -414,7 +414,7 @@ case class ModuleOp(
     annotations: ArrayAttribute[Attribute] = ArrayAttribute(),
     layers: ArrayAttribute[SymbolRefAttr] = ArrayAttribute(),
     domain_info: ArrayAttribute[Attribute] = ArrayAttribute(),
-) extends DerivedOperation["scairrtl.module"]
+) extends DerivedOperation["firrtl.module"]
     with IsolatedFromAbove
     with Symbol
     with SymbolTable
@@ -451,7 +451,7 @@ case class LayerOp(
     sym_name: StringData,
     sym_visibility: Option[StringData] = None,
     convention: LayerConventionEnum,
-) extends DerivedOperation["scairrtl.layer"]
+) extends DerivedOperation["firrtl.layer"]
     with IsolatedFromAbove
     with Symbol
     with SymbolTable
@@ -473,7 +473,7 @@ case class WireOp(
     nameKind: NameKindEnum,
     annotations: ArrayAttribute[Attribute],
     forceable: Option[UnitAttr] = None,
-) extends DerivedOperation["scairrtl.wire"]
+) extends DerivedOperation["firrtl.wire"]
     with HasParent derives OpDefs:
 
   def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
@@ -497,7 +497,7 @@ case class RegOp(
     nameKind: NameKindEnum,
     annotations: ArrayAttribute[Attribute],
     forceable: Option[UnitAttr] = None,
-) extends DerivedOperation["scairrtl.reg"]
+) extends DerivedOperation["firrtl.reg"]
     with OperandAndResultTypes
     with HasParent derives OpDefs:
 
@@ -519,7 +519,7 @@ case class RegResetOp(
     nameKind: NameKindEnum,
     annotations: ArrayAttribute[Attribute],
     forceable: Option[UnitAttr] = None,
-) extends DerivedOperation["scairrtl.regreset"]
+) extends DerivedOperation["firrtl.regreset"]
     with OperandAndResultTypes
     with OneBitOperands
     with InfersResultTypes
@@ -546,7 +546,7 @@ case class RegResetOp(
 case class MatchingConnectOp(
     dest: Operand[RTLType],
     src: Operand[RTLType],
-) extends DerivedOperation["scairrtl.matchingconnect"]
+) extends DerivedOperation["firrtl.matchingconnect"]
     with SameTypeOperands derives OpDefs
 // [HIGH]     SameTypeOperands — exact type equality is the only reason this
 //            operation exists next to the permissive connect. CIRCT compares
@@ -560,7 +560,7 @@ case class MatchingConnectOp(
 case class ConstantOp(
     value: IntegerAttr,
     result: Result[IntType],
-) extends DerivedOperation["scairrtl.constant"]
+) extends DerivedOperation["firrtl.constant"]
     with Pure
     with OperandAndResultTypes
     with ConstantLike(value) derives OpDefs:
@@ -573,7 +573,7 @@ case class MuxOp(
     high: Operand[IntType],
     low: Operand[IntType],
     result: Result[IntType],
-) extends DerivedOperation["scairrtl.mux"]
+) extends DerivedOperation["firrtl.mux"]
     with Pure
     with OperandAndResultTypes
     with OneBitOperands
@@ -600,7 +600,7 @@ case class BitsOp(
     hi: IntegerAttr,
     lo: IntegerAttr,
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.bits"]
+) extends DerivedOperation["firrtl.bits"]
     with Pure
     with OperandAndResultTypes
     with BitsSelectionRange
@@ -616,7 +616,7 @@ case class EqOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.eq"]
+) extends DerivedOperation["firrtl.eq"]
     with ComparisonOp
     with Commutative derives OpDefs
 
@@ -624,7 +624,7 @@ case class NeqOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.neq"]
+) extends DerivedOperation["firrtl.neq"]
     with ComparisonOp
     with Commutative derives OpDefs
 
@@ -632,28 +632,28 @@ case class LtOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.lt"]
+) extends DerivedOperation["firrtl.lt"]
     with ComparisonOp derives OpDefs
 
 case class LeqOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.leq"]
+) extends DerivedOperation["firrtl.leq"]
     with ComparisonOp derives OpDefs
 
 case class GtOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.gt"]
+) extends DerivedOperation["firrtl.gt"]
     with ComparisonOp derives OpDefs
 
 case class GeqOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[UIntType],
-) extends DerivedOperation["scairrtl.geq"]
+) extends DerivedOperation["firrtl.geq"]
     with ComparisonOp derives OpDefs
 
 /** Adds two integers of the same signedness. */
@@ -661,7 +661,7 @@ case class AddOp(
     lhs: Operand[IntType],
     rhs: Operand[IntType],
     result: Result[IntType],
-) extends DerivedOperation["scairrtl.add"]
+) extends DerivedOperation["firrtl.add"]
     with SameOperandsIntTypeKind
     with Commutative
     with Pure

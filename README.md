@@ -5,15 +5,16 @@ a type-safe SSA-based IR framework for Scala 3 that is compatible with MLIR.
 
 ## Status
 
-The dialect is at an early stage. `dialects/src/ScaIRRTL.scala` defines:
+The dialect is at an early stage and is spelled `firrtl.*`, mirroring CIRCT's
+FIRRTL dialect. `dialects/src/ScaIRRTL.scala` defines:
 
-- **Types** — `!scairrtl.uint<N>` and `!scairrtl.sint<N>`, each also spellable
-  without a width while that width is still uninferred, and `!scairrtl.clock`.
-- **Structure** — `scairrtl.circuit`, `scairrtl.module`, and `scairrtl.layer`,
+- **Types** — `!firrtl.uint<N>` and `!firrtl.sint<N>`, each also spellable
+  without a width while that width is still uninferred, and `!firrtl.clock`.
+- **Structure** — `firrtl.circuit`, `firrtl.module`, and `firrtl.layer`,
   each owning a body region and acting as a symbol table.
-- **Declarations and statements** — `scairrtl.wire` and
-  `scairrtl.matchingconnect`.
-- **Expressions** — `scairrtl.add`.
+- **Declarations and statements** — `firrtl.wire` and
+  `firrtl.matchingconnect`.
+- **Expressions** — `firrtl.add`.
 
 Generic assembly is the only syntax for now: every operation parses, verifies,
 prints, and round-trips through `scairrtl-opt`, but none has custom assembly.
@@ -82,7 +83,7 @@ requests and uploads it as the `scairrtl-documentation` artifact.
 ## Repository layout
 
 ```
-dialects/           -- scairrtl.* types and operations
+dialects/           -- firrtl.* types and operations
 opt/                -- scairrtl.main: ScaIR-compatible optimizer CLI
 tests/filecheck/    -- lit + FileCheck regression tests
 ```
