@@ -25,7 +25,7 @@ their decisions and behavior are captured in the dialect, documentation, and
 tests as appropriate. Keep session logs and completed-work histories out of it.
 
 Keep the dialect's types, operations, and assembly authoritative in
-`dialects/src/ScaIRRTL.scala` and in `docs/_docs/`. The README should link to
+`dialects/src/firrtl.scala` and in `docs/_docs/`. The README should link to
 that material rather than duplicate it; use it for project setup, tooling,
 implementation status, and navigation.
 
@@ -40,7 +40,7 @@ The repository owns the Scala implementation of the `firrtl.*` dialect — its
 types, operations, and assembly — and the `scairrtl-opt` driver that parses,
 verifies, transforms, and prints IR built from it. The namespace mirrors CIRCT's
 FIRRTL dialect while the Scala package remains `scairrtl`; attribute spellings
-and module port block arguments still differ from CIRCT's schema.
+and port-direction/annotation encodings still differ from CIRCT's schema.
 
 ## Build commands
 
@@ -54,6 +54,7 @@ The project uses a bundled `./mill` wrapper script (no global installation neede
 | Apply passes | `./mill opt.run -p <pass>[,<pass>...] <file.mlir>` |
 | Execute `main` through MLIR tools | `./mill opt.run --run <file.mlir>` |
 | Run lit + FileCheck tests | `./mill filechecks.run` |
+| Run Chisel frontend tests | `./mill frontend.test` |
 | Format all sources | `./mill format` |
 | Check formatting (CI) | `./mill checkFormat` |
 | Build documentation and API reference | `./mill opt.unidocSite` |
@@ -71,10 +72,19 @@ The `format` command runs both scalafix (lint/rewrite) and scalafmt on all modul
 build.mill               # Mill build definition
 dialects/
   src/
-    ScaIRRTL.scala       # firrtl.* types and operations
+    firrtl.scala         # firrtl.* types and operations
 opt/
   src/
     Opt.scala            # scairrtl.main.Main: scopt-based scairrtl-opt CLI
+frontend/
+  src/
+    Circuit.scala        # package chisel3 access to the internal circuit
+    Builder.scala        # firrtl builder API used by the walker
+    ChiselImport.scala   # package chisel3 walker
+  test/
+    src/
+      Tiny.scala           # designs used by the importer tests
+      ChiselImportTest.scala
 tests/
   filecheck/
     lit.cfg              # scairrtl-opt substitution, SCAIRRTL_OPT override, MLIR features
@@ -92,6 +102,16 @@ invoking lit. Conversion passes get their own module when lowering work begins.
   dialect libraries; `opt` adds `scair-passes`. The repository defines
   `firrtl.*` types and operations on top of it; see
   [docs](https://edin-dal.github.io/scair).
+- **Chisel** — `frontend` depends on the Chisel Scala 3 snapshot (`chisel_3`
+  plus `chisel-plugin_3.9.0`) and compiles with its compiler plugin. `dialects`
+  and `opt` stay Chisel-free. `ChiselCircuit` lives in `package chisel3` because
+  the internal circuit is package-private; code that names those internal types
+  must live there too. `ChiselImport` walks `DefWire`, `DefReg`, `DefRegInit`,
+  `DefPrim` (`add`, `mux`, `bits`, comparisons), and `Connect`; other commands
+  are reported as errors. Bundle and vector ports are preserved as
+  `BundleType`/`VectorType`, with `subfield`/`subindex` projections for field
+  access. Aggregate wires/registers and dynamic vector indexing remain
+  unsupported. Port locations, annotations, and symbols are not encoded yet.
 - **scopt** — command-line argument parsing in `opt/`.
 - **mill-scalafix** — scalafix is wired into the `ScaIRRTLModule` trait and runs
   via `./mill format`.
@@ -134,10 +154,11 @@ verified, run through the selected passes, then printed or executed.
 ScaIRRTL follows ScaIR's derivation style rather than a tablegen-style DSL.
 
 - **Types** are case classes deriving `DerivedAttribute["firrtl.<name>"]` and
-  implementing `AttrDefs`, mixed with a family trait (such as `RTLType`) so
-  operations can accept several related types. Family traits nest where one
-  narrows another: `IntType` is the two integer types out of `RTLType`.
-  `TypeAttribute` makes them print with a leading `!`.
+  implementing `AttrDefs`, mixed with a family trait so operations can accept
+  several related types. `FIRRTLType` is the top-level family and
+  `FIRRTLBaseType` is the value-like family. Family traits nest where one
+  narrows another: `IntType` is the two integer types out of
+  `FIRRTLBaseType`. `TypeAttribute` makes them print with a leading `!`.
 - **Operations** are case classes deriving `DerivedOperation["firrtl.<name>"]`
   and implementing `OpDefs`, with operands, results, attributes, and regions
   declared as constructor fields. Stateless operations mix in ScaIR's effect
@@ -269,6 +290,9 @@ does not belong in the file.
 - **Short, and about what rather than how.** A doc comment above a function or
   method is one or two lines saying what it is or does. Anything about how the
   code works belongs in single-line comments inside the body.
+- **ScalaDoc is for public API.** Use `/** ... */` only on public types,
+  operations, and frontend API published by `unidocSite`; use `//` for private
+  helpers, implementation notes, and section markers.
 - One sanctioned exception: the per-operation `[TODO]`/`[HIGH]`/`[BLOCKING]`
   blocks, which stay multi-line and still describe only the present state.
 

@@ -5,8 +5,7 @@ import scair.clair.*
 import scair.dialects.builtin.*
 import scair.enums.I32Enum
 import scair.ir.*
-import scair.parse.Parser
-import scair.parse.intDataP
+import scair.parse.{Parser, bareIdP, intDataP, stringLiteralP, typeP}
 import scair.print.Printer
 import scair.utils.*
 
@@ -169,10 +168,10 @@ trait InfersResultTypes extends Operation:
         )
     checked.flatMap(_ => super.traitVerify())
 
-/** The keyword set `sym_visibility` accepts. */
+// The keyword set `sym_visibility` accepts.
 private val symbolVisibilities = Seq("public", "private", "nested")
 
-/** The nearest symbol table at or above `op`. */
+// The nearest symbol table at or above `op`.
 private def nearestSymbolTable(op: Operation): Option[SymbolTable] =
   op match
     case table: SymbolTable => Some(table)
@@ -180,7 +179,7 @@ private def nearestSymbolTable(op: Operation): Option[SymbolTable] =
       op.containerBlock.flatMap(_.containerRegion).flatMap(_.containerOperation)
         .flatMap(nearestSymbolTable)
 
-/** Look `name` up in `table` without throwing when it is absent. */
+// Look `name` up in `table` without throwing when it is absent.
 private def lookupSymbol(table: SymbolTable, name: String): Option[Operation] =
   table.regions.headOption.flatMap(_.blocks.headOption)
     .flatMap(_.operations.find {
@@ -188,7 +187,7 @@ private def lookupSymbol(table: SymbolTable, name: String): Option[Operation] =
       case _              => false
     })
 
-/** Resolve a symbol reference through the nested tables it names. */
+// Resolve a symbol reference through the nested tables it names.
 private def resolveSymbol(
     scope: Option[SymbolTable],
     ref: SymbolRefAttr,
@@ -249,6 +248,8 @@ trait BitsSelectionRange extends Operation:
   def lo: IntegerAttr
 
   override def traitVerify(): OK[Operation] =
+    if hi.typ != I32 || lo.typ != I32 then
+      return Err("bits hi and lo must be i32 attributes")
     val (high, low) = (hi.value.value, lo.value.value)
     val width: BigInt = input.typ match
       case t: UIntType => t.width.value
@@ -277,12 +278,35 @@ sealed trait ComparisonOp
 
   def inferResultTypes: Seq[Attribute] = Seq(UIntType(IntData(1)))
 
-/** The wider of two widths, or uninferred when either is unknown. */
+// A type with no flips anywhere in its aggregate structure.
+private def isPassive(tpe: FIRRTLBaseType): Boolean =
+  tpe match
+    case BundleType(fields) =>
+      fields.data
+        .forall(field => field.isFlip.value.value == 0 && isPassive(field.tpe))
+    case VectorType(element, _) => isPassive(element)
+    case _                      => true
+
+// A type whose widths and vector sizes are all known.
+private def isSized(tpe: FIRRTLBaseType): Boolean =
+  tpe match
+    case UIntType(width)    => width.value >= 0
+    case SIntType(width)    => width.value >= 0
+    case BundleType(fields) => fields.data.forall(field => isSized(field.tpe))
+    case VectorType(element, size) =>
+      size.value >= 0 && isSized(element)
+    case _ => true
+
+// What CIRCT's MatchingConnectableType admits.
+private def isSizedPassive(tpe: FIRRTLBaseType): Boolean =
+  isPassive(tpe) && isSized(tpe)
+
+// The wider of two widths, or uninferred when either is unknown.
 private def widerWidth(left: IntData, right: IntData): IntData =
   if left.value < 0 || right.value < 0 then unknownWidth
   else IntData(left.value.max(right.value))
 
-/** One bit past the wider operand, or uninferred when either input is. */
+// One bit past the wider operand, or uninferred when either input is.
 private def addedWidth(left: IntData, right: IntData): IntData =
   if left.value < 0 || right.value < 0 then unknownWidth
   else IntData(left.value.max(right.value) + 1)
@@ -300,6 +324,12 @@ enum NameKindEnum(name: String) extends I32Enum(name):
   case DroppableName extends NameKindEnum("droppable_name")
   case InterestingName extends NameKindEnum("interesting_name")
 
+/** Direction of a module port. */
+enum PortDirection(name: String) extends I32Enum(name):
+  case Input extends PortDirection("input")
+  case Output extends PortDirection("output")
+  case InOut extends PortDirection("inout")
+
 /** The lowering convention a module is instantiated with. */
 enum ConventionEnum(name: String) extends I32Enum(name):
   case Internal extends ConventionEnum("internal")
@@ -314,13 +344,16 @@ enum LayerConventionEnum(name: String) extends I32Enum(name):
 ||         TYPES           ||
 \*≡==---==≡≡≡≡≡≡==---==≡*/
 
-/** Common supertype of every ScaIRRTL value type, so operations can accept any
-  * of them in an operand or result position.
+/** Common supertype of every firrtl type. */
+sealed trait FIRRTLType extends TypeAttribute
+
+/** Common supertype of every base value type, so operations can accept any of
+  * them in an operand or result position.
   */
-sealed trait RTLType extends TypeAttribute
+sealed trait FIRRTLBaseType extends FIRRTLType
 
 /** Both integer signednesses, so integer operations cannot take a clock. */
-sealed trait IntType extends RTLType
+sealed trait IntType extends FIRRTLBaseType
 
 /** The width of an integer whose width has not been inferred yet. */
 val unknownWidth: IntData = IntData(-1)
@@ -366,12 +399,115 @@ object SIntType:
 
 /** The clock signal type. */
 final case class ClockType()
-    extends RTLType
+    extends FIRRTLBaseType
     with DerivedAttribute["firrtl.clock"] derives AttrDefs
 
-// [TODO]     AnalogType, ResetType, AsyncResetType, RefType, and the aggregate
-//            types (BundleType, FVectorType, FEnumType). RefType is required
-//            before a forceable wire can expose its `ref` result.
+/** One field of a FIRRTL bundle type. */
+final case class BundleField(
+    fieldName: StringData,
+    tpe: FIRRTLBaseType,
+    isFlip: IntegerAttr,
+) extends ParametrizedAttribute:
+  override def name = "firrtl.bundle_field"
+  override def parameters: Seq[Attribute] = Seq(fieldName, tpe, isFlip)
+
+/** A FIRRTL bundle type, with fields in declaration order. */
+final case class BundleType(fields: ArrayAttribute[BundleField])
+    extends FIRRTLBaseType
+    with DerivedAttribute["firrtl.bundle"] derives AttrDefs:
+
+  def field(index: Int): FIRRTLBaseType = fields.data(index).tpe
+
+  def field(name: String): Option[FIRRTLBaseType] =
+    fields.data.find(_.fieldName.stringLiteral == name).map(_.tpe)
+
+  def fieldIndex(name: String): Option[Int] =
+    fields.data.indexWhere(_.fieldName.stringLiteral == name) match
+      case -1    => None
+      case index => Some(index)
+
+  override def customPrint(p: Printer) =
+    p.print("!firrtl.bundle<")
+    fields.data.zipWithIndex.foreach { case (field, index) =>
+      if index > 0 then p.print(", ")
+      val fieldName = field.fieldName.stringLiteral
+      if fieldName.headOption.exists(_.isDigit) then
+        p.printStringLiteral(fieldName)
+      else p.print(fieldName)
+      if field.isFlip.value.value != 0 then p.print(" flip")
+      p.print(": ")
+      p.print(field.tpe)
+    }
+    p.print(">")
+
+object BundleType:
+
+  given AttributeCustomParser[BundleType] with
+
+    def parse[$: P](using Parser): P[BundleType] =
+      P("<" ~/ (fieldP ~ ("," ~/ fieldP).rep).? ~ ">").map { fields =>
+        val all = fields.map { case (head, tail) => head +: tail }
+          .getOrElse(Seq.empty)
+        BundleType(ArrayAttribute(all*))
+      }
+
+    private def fieldP[$: P](using Parser): P[BundleField] =
+      val quotedHeader =
+        (stringLiteralP.map(value => s"\"$value\"") ~
+          CharsWhileIn("A-Za-z0-9_$. \"", min = 0).!).map {
+          case (quoted, rest) => quoted + rest
+        }
+      val bareHeader = CharsWhileIn("A-Za-z0-9_$. \"", min = 1).!
+      val headerP: P[String] = P(quotedHeader | bareHeader)
+      P(headerP ~ ":" ~ typeP).flatMap { case (header, tpe) =>
+        val text = header.trim
+        val isFlip = text.endsWith(" flip")
+        val rawName =
+          if isFlip then text.stripSuffix(" flip").trim else text
+        val fieldName =
+          if rawName.startsWith("\"") && rawName.endsWith("\"") then
+            rawName.drop(1).dropRight(1)
+          else rawName
+        tpe match
+          case rtl: FIRRTLBaseType =>
+            Pass(
+              BundleField(
+                StringData(fieldName),
+                rtl,
+                IntegerAttr(IntData(if isFlip then 1 else 0), I1),
+              )
+            )
+          case other =>
+            Fail(s"expected a FIRRTL base type in bundle field, got $other")
+      }
+
+/** A FIRRTL vector type. */
+final case class VectorType(element: FIRRTLBaseType, size: IntData)
+    extends FIRRTLBaseType
+    with DerivedAttribute["firrtl.vector"] derives AttrDefs:
+
+  override def customPrint(p: Printer) =
+    p.print("!firrtl.vector<", element, ", ", size.value.toString, ">")
+
+  override def customVerify(): OK[Unit] =
+    if size.value < 0 then Err("vector size must be non-negative")
+    else OK(())
+
+object VectorType:
+
+  given AttributeCustomParser[VectorType] with
+
+    def parse[$: P](using Parser): P[VectorType] =
+      P("<" ~/ typeP ~ "," ~ intDataP ~ ">").flatMap { case (tpe, size) =>
+        tpe match
+          case rtl: FIRRTLBaseType => Pass(VectorType(rtl, size))
+          case other               =>
+            Fail(s"expected a FIRRTL vector element type, got $other")
+      }
+
+// [TODO]     AnalogType, ResetType, AsyncResetType, RefType, and FEnumType.
+//            RefType is required before a forceable wire can expose its `ref`
+//            result.
 // [TODO]     every CIRCT base type also carries an `isConst` parameter, spelled
 //            with a `const.` prefix on the type name.
 // [TODO]     reject a negative width when parsing, as CIRCT does.
@@ -441,8 +577,7 @@ case class ModuleOp(
   //            a module body cannot reference a single port. TODO
   // [HIGH]     port_directions holds untyped attributes, so a malformed direction
   //            cannot be rejected. TODO: give direction a type.
-  // [TODO]     convention is required in CIRCT; optional here until its
-  //            semantics are implemented.
+  // [TODO]     convention is recorded but its semantics are not implemented.
   // [TODO]     InnerSymbolTable, PortList, FModuleLike,
   //            InstanceGraphModuleOpInterface, OpAsmOpInterface
 
@@ -467,8 +602,45 @@ case class LayerOp(
   // [TODO] LayerSpecialization ("enable" or "disable" for the circuit's
   //        default).
 
+/** Extracts one field from a bundle value. */
+case class SubfieldOp(
+    input: Operand[BundleType],
+    fieldIndex: IntegerAttr,
+    result: Result[FIRRTLBaseType],
+) extends DerivedOperation["firrtl.subfield"]
+    with Pure
+    with InfersResultTypes derives OpDefs:
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(input.typ.field(fieldIndex.value.value.toInt))
+
+  override def traitVerify(): OK[Operation] =
+    val index = fieldIndex.value.value.toInt
+    val fields = input.typ.fields.data
+    if index < 0 || index >= fields.length then
+      Err(s"bundle field index $index is out of range")
+    else super.traitVerify()
+
+/** Extracts one element from a vector value. */
+case class SubindexOp(
+    input: Operand[VectorType],
+    index: IntegerAttr,
+    result: Result[FIRRTLBaseType],
+) extends DerivedOperation["firrtl.subindex"]
+    with Pure
+    with InfersResultTypes derives OpDefs:
+
+  def inferResultTypes: Seq[Attribute] = Seq(input.typ.element)
+
+  override def traitVerify(): OK[Operation] =
+    val position = index.value.value.toInt
+    val size = input.typ.size.value.toInt
+    if position < 0 || position >= size then
+      Err(s"vector index $position is out of range")
+    else super.traitVerify()
+
 case class WireOp(
-    result: Result[RTLType],
+    result: Result[FIRRTLBaseType],
     sym_name: StringData,
     nameKind: NameKindEnum,
     annotations: ArrayAttribute[Attribute],
@@ -491,7 +663,7 @@ case class WireOp(
 
 /** A register clocked by `clock`, holding its value across cycles. */
 case class RegOp(
-    result: Result[IntType],
+    result: Result[FIRRTLBaseType],
     clock: Operand[ClockType],
     sym_name: StringData,
     nameKind: NameKindEnum,
@@ -502,7 +674,7 @@ case class RegOp(
     with HasParent derives OpDefs:
 
   def operandResultTypes: Seq[Class[? <: Attribute]] =
-    Seq(classOf[ClockType], classOf[IntType])
+    Seq(classOf[ClockType], classOf[FIRRTLBaseType])
 
   def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
 
@@ -511,10 +683,10 @@ case class RegOp(
 
 /** A register clocked by `clock` that resets to `init` while `reset` is set. */
 case class RegResetOp(
-    result: Result[IntType],
+    result: Result[FIRRTLBaseType],
     clock: Operand[ClockType],
     reset: Operand[UIntType],
-    init: Operand[IntType],
+    init: Operand[FIRRTLBaseType],
     sym_name: StringData,
     nameKind: NameKindEnum,
     annotations: ArrayAttribute[Attribute],
@@ -529,8 +701,8 @@ case class RegResetOp(
     Seq(
       classOf[ClockType],
       classOf[UIntType],
-      classOf[IntType],
-      classOf[IntType],
+      classOf[FIRRTLBaseType],
+      classOf[FIRRTLBaseType],
     )
 
   def oneBitOperands: Seq[Int] = Seq(1)
@@ -544,10 +716,20 @@ case class RegResetOp(
 
 /** Connects two values whose types must match exactly. */
 case class MatchingConnectOp(
-    dest: Operand[RTLType],
-    src: Operand[RTLType],
+    dest: Operand[FIRRTLBaseType],
+    src: Operand[FIRRTLBaseType],
 ) extends DerivedOperation["firrtl.matchingconnect"]
-    with SameTypeOperands derives OpDefs
+    with SameTypeOperands derives OpDefs:
+
+  override def traitVerify(): OK[Operation] =
+    val offending = Seq(dest.typ, src.typ).filterNot(isSizedPassive)
+    if offending.nonEmpty then
+      Err(
+        "matchingconnect operands must be sized passive types, got " +
+          offending.mkString(", ")
+      )
+    else super.traitVerify()
+
 // [HIGH]     SameTypeOperands — exact type equality is the only reason this
 //            operation exists next to the permissive connect. CIRCT compares
 //            anonymous types instead, which strips flips and aliases before
@@ -570,9 +752,9 @@ case class ConstantOp(
 /** Selects `high` when `cond` is set, and `low` otherwise. */
 case class MuxOp(
     cond: Operand[UIntType],
-    high: Operand[IntType],
-    low: Operand[IntType],
-    result: Result[IntType],
+    high: Operand[FIRRTLBaseType],
+    low: Operand[FIRRTLBaseType],
+    result: Result[FIRRTLBaseType],
 ) extends DerivedOperation["firrtl.mux"]
     with Pure
     with OperandAndResultTypes
@@ -580,7 +762,12 @@ case class MuxOp(
     with InfersResultTypes derives OpDefs:
 
   def operandResultTypes: Seq[Class[? <: Attribute]] =
-    Seq(classOf[UIntType], classOf[IntType], classOf[IntType], classOf[IntType])
+    Seq(
+      classOf[UIntType],
+      classOf[FIRRTLBaseType],
+      classOf[FIRRTLBaseType],
+      classOf[FIRRTLBaseType],
+    )
 
   def oneBitOperands: Seq[Int] = Seq(0)
 
@@ -590,8 +777,19 @@ case class MuxOp(
         Seq(UIntType(widerWidth(h.width, l.width)))
       case (h: SIntType, l: SIntType) =>
         Seq(SIntType(widerWidth(h.width, l.width)))
+      case (h, l) if h == l && isPassive(h) =>
+        Seq(h)
       // Mismatched signedness is not this check's business.
       case _ => results.map(_.typ)
+
+  override def traitVerify(): OK[Operation] =
+    val values = Seq(high.typ, low.typ, result.typ)
+    val offending = values.filterNot(isPassive)
+    if offending.nonEmpty then
+      Err(
+        s"Mux operands and result must be passive, got ${offending.mkString(", ")}"
+      )
+    else super.traitVerify()
 
 /** Extracts bits `hi` through `lo`; the result is unsigned, `hi - lo + 1` wide.
   */
@@ -683,8 +881,8 @@ case class AddOp(
   // [TODO] HasCustomSSAName, and the sibling primitives (sub, mul, div, rem,
   //        and/or/xor, cat, bits)
 
-val ScaIRRTLDialect: Dialect = summonDialect[
-  (UIntType, SIntType, ClockType),
+val FIRRTLDialect: Dialect = summonDialect[
+  (UIntType, SIntType, ClockType, BundleType, VectorType),
   (
       CircuitOp,
       ModuleOp,
@@ -696,6 +894,8 @@ val ScaIRRTLDialect: Dialect = summonDialect[
       ConstantOp,
       MuxOp,
       BitsOp,
+      SubfieldOp,
+      SubindexOp,
       EqOp,
       NeqOp,
       LtOp,

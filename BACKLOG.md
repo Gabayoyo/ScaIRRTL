@@ -21,7 +21,7 @@ inference point, so `InfersResultTypes` is a dialect-local convention whose only
 consumer is its own verifier. Nothing outside the dialect can ask an operation
 for its result types. `unknownWidth` marks an uninferred width, and
 `AddOp.inferResultTypes` propagates it rather than guessing. See
-[ScaIRRTL.scala](dialects/src/ScaIRRTL.scala).
+[firrtl.scala](dialects/src/firrtl.scala).
 
 **Decisions needed:** Whether to upstream the inference hook so passes can use it,
 and how an uninferred width should resolve once a pass is responsible for it
@@ -33,14 +33,16 @@ fixture for known and uninferred widths — `arithmetic.mlir` and
 
 ## Module port wiring
 
-**Problem:** A module declares its interface in `port_types`, `port_directions`,
-and `port_names`, but the body cannot reach any of it: there are no entry-block
-arguments, and no verifier relates the two.
+**Problem:** The builder creates one entry-block argument per port, but the
+module verifier does not relate arguments to `port_types`/`port_locations`, and
+symbol lookup for ports is absent.
 
 **Known constraints:** CIRCT's `FModuleOp` verifier requires exactly one argument
 per port, each argument's type to match `portTypes[i]`, and each argument's
 location to match `portLocations[i]`. ScaIR's `NoTerminator` fixes the region at
-one block, which is what makes an entry argument list well-defined.
+one block, which is what makes an entry argument list well-defined. Chisel's
+`DefModule.ports` keeps the top `io` bundle as one aggregate port; the importer
+preserves it as a `BundleType` and resolves `io.y` through `firrtl.subfield`.
 
 **Decisions needed:** Choose whether ports are entry-block arguments, symbol
 lookups, or both, and how direction is represented — a numeric array, an enum
@@ -58,7 +60,7 @@ trailing comment blocks on each operation name them.
 
 **Known constraints:** ScaIR has no op-interface system: an interface becomes a
 Scala trait, and its abstract members are the interface methods. Implemented in
-[ScaIRRTL.scala](dialects/src/ScaIRRTL.scala): `SingleBlock`,
+[firrtl.scala](dialects/src/firrtl.scala): `SingleBlock`,
 `NoRegionArguments`, `HasParent`, `SameTypeOperands`, `SymbolName`,
 `SymbolVisibility`, `SymbolUserOpInterface`, `InfersResultTypes`,
 `SameOperandsIntTypeKind`, `OneBitOperands`, and `BitsSelectionRange`.
@@ -89,8 +91,8 @@ them land, and remove each from the corresponding comment block.
 
 ## Remaining types
 
-**Problem:** Only `uint`, `sint`, and `clock` exist, so several operations cannot
-be expressed.
+**Problem:** Only `uint`, `sint`, `clock`, `bundle`, and `vector` exist, so
+several operations cannot be expressed.
 
 **Known constraints:** CIRCT parameterizes `uint`, `sint`, and `analog` with a
 width sentinel of `-1` for an uninferred width, and gives `clock`, `reset`, and
@@ -99,11 +101,12 @@ parameter, spelled with a `const.` prefix. A forceable wire exposes a second
 `ref` result, which needs a reference type.
 
 **Decisions needed:** Choose the order to add `analog`, `reset`, `asyncreset`,
-the reference type, and the aggregate types (`bundle`, `vector`, `enum`), and
-whether the `isConst` parameter is carried on every type or modelled separately.
+the reference type, and `enum`, and whether the `isConst` parameter is carried
+on every type or modelled separately.
 
 **Completion:** Add each type with the same print/parse pairing the current types
-use, plus fixtures that round-trip a sized and an unsized spelling.
+use, plus fixtures that round-trip a sized and an unsized spelling. Aggregate
+wires/registers and dynamic `subaccess` remain importer gaps.
 
 ## Layers
 
@@ -161,6 +164,16 @@ unsupported constructs remain represented.
 
 **Completion:** Implement the conversions, keep residual IR well-formed, and add
 execution coverage where a target exists.
+
+## CIRCT schema conformance
+
+**Problem:** The importer emits `firrtl.*` operations, but the module metadata is
+not yet CIRCT-compatible: `port_directions` holds enum ordinals rather than
+dense booleans, `port_locations` is empty because ScaIR has no location
+attribute, and `port_annotations` and `port_symbols` are empty arrays.
+
+**Completion:** Type the port metadata, add or drop location encoding, and
+verify output with `firtool --format=mlir` against a pinned CIRCT version.
 
 ## Documented dialect reference
 

@@ -6,15 +6,17 @@ a type-safe SSA-based IR framework for Scala 3 that is compatible with MLIR.
 ## Status
 
 The dialect is at an early stage and is spelled `firrtl.*`, mirroring CIRCT's
-FIRRTL dialect. `dialects/src/ScaIRRTL.scala` defines:
+FIRRTL dialect. `dialects/src/firrtl.scala` defines:
 
 - **Types** — `!firrtl.uint<N>` and `!firrtl.sint<N>`, each also spellable
-  without a width while that width is still uninferred, and `!firrtl.clock`.
+  without a width while that width is still uninferred, `!firrtl.clock`, and
+  aggregate `!firrtl.bundle<...>` / `!firrtl.vector<...>` types.
 - **Structure** — `firrtl.circuit`, `firrtl.module`, and `firrtl.layer`,
   each owning a body region and acting as a symbol table.
 - **Declarations and statements** — `firrtl.wire` and
   `firrtl.matchingconnect`.
-- **Expressions** — `firrtl.add`.
+- **Expressions** — `firrtl.add`, plus `firrtl.subfield` and `firrtl.subindex`
+  for aggregate field access.
 
 Generic assembly is the only syntax for now: every operation parses, verifies,
 prints, and round-trips through `scairrtl-opt`, but none has custom assembly.
@@ -38,6 +40,9 @@ The repository ships a self-contained `./mill` wrapper — no global installatio
 
 # Run lit + FileCheck tests
 ./mill filechecks.run
+
+# Run Chisel frontend tests
+./mill frontend.test
 
 # Format all sources (scalafix + scalafmt)
 ./mill format
@@ -84,6 +89,7 @@ requests and uploads it as the `scairrtl-documentation` artifact.
 
 ```
 dialects/           -- firrtl.* types and operations
+frontend/           -- Chisel frontend: circuit access, builder, importer
 opt/                -- scairrtl.main: ScaIR-compatible optimizer CLI
 tests/filecheck/    -- lit + FileCheck regression tests
 ```

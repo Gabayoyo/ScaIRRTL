@@ -7,7 +7,7 @@ import scair.print.AssemblyPrinter
 import scair.print.ErrorPrinter
 import scair.utils.*
 import scair.verify.Verifier
-import scairrtl.dialects.ScaIRRTLDialect
+import scairrtl.dialects.FIRRTLDialect
 import scopt.OParser
 
 import java.io.IOException
@@ -36,7 +36,7 @@ object Main:
 
   private val ctx = MLContext()
 
-  private val dialects = scair.dialects.allDialects :+ ScaIRRTLDialect
+  private val dialects = scair.dialects.allDialects :+ FIRRTLDialect
 
   private val passes = scair.passes.allPasses
 
@@ -57,7 +57,7 @@ object Main:
     if splitInputFile then input.mkString.split("\n// -----\n")
     else Array(input.mkString)
 
-  /** Diagnostic mode reports errors as output; compilation stops on errors. */
+  // Diagnostic mode reports errors as output; compilation stops on errors.
   private def handleParsingError(error: String, args: ScaIRRTLOptArgs): Unit =
     if args.parsingDiagnostics then println(error)
     else throw Exception(error)
