@@ -17,6 +17,9 @@ class ChiselImportTest extends AnyFunSuite:
     printer.flush()
     writer.toString
 
+  private def count(text: String, needle: String): Int =
+    text.split(java.util.regex.Pattern.quote(needle), -1).length - 1
+
   test("imports a scalar module as firrtl operations"):
     val result = ChiselImport(ChiselStage.elaborate(new Tiny))
     assert(result.isOK)
@@ -52,6 +55,28 @@ class ChiselImportTest extends AnyFunSuite:
     assert(text.contains("!firrtl.vector<!firrtl.uint<8>, 2>"))
     assert(text.contains("\"firrtl.subindex\""))
     assert(text.contains("index = 0 : i32"))
+
+  test("imports combinational memories as chirrtl operations"):
+    val result = ChiselImport(ChiselStage.elaborate(new CombMemTiny))
+    assert(result.isOK)
+    val text = render(result.get)
+    assert(text.contains("\"chirrtl.combmem\""))
+    assert(text.contains("!chirrtl.cmemory<!firrtl.uint<8>, 16>"))
+    assert(text.contains("\"chirrtl.memoryport\""))
+    assert(text.contains("direction = 2 : i32"))
+    assert(text.contains("direction = 1 : i32"))
+    assert(text.contains("\"chirrtl.memoryport.access\""))
+    assert(count(text, "\"chirrtl.memoryport\"") == 2)
+    assert(count(text, "\"chirrtl.memoryport.access\"") == 2)
+
+  test("imports sequential memories with their read-under-write behavior"):
+    val result = ChiselImport(ChiselStage.elaborate(new SeqMemTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(text.contains("\"chirrtl.seqmem\""))
+    assert(text.contains("ruw = 1 : i32"))
+    assert(text.contains("!chirrtl.cmemory<!firrtl.uint<8>, 16>"))
+    assert(text.contains("\"chirrtl.memoryport.access\""))
 
   test("rejects unsupported commands"):
     val result = ChiselImport(ChiselStage.elaborate(new WhenTiny))

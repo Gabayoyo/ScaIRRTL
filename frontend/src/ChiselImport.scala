@@ -1,6 +1,7 @@
 package chisel3
 
 import chisel3.experimental.{SourceInfo, SourceLine}
+import chisel3.internal.HasId
 import chisel3.internal.firrtl.ir
 import scair.dialects.builtin.{
   ArrayAttribute,
@@ -31,16 +32,25 @@ object ChiselImport:
     private val byData =
       java.util.IdentityHashMap[Data, Value[FIRRTLBaseType]]()
 
+    private val memories =
+      java.util.IdentityHashMap[HasId, Value[CMemoryType]]()
+
     private val byName = mutable.Map.empty[String, Value[FIRRTLBaseType]]
 
     def bindData(data: Data, value: Value[FIRRTLBaseType]): Unit =
       byData.put(data, value)
+
+    def bindMemory(id: HasId, value: Value[CMemoryType]): Unit =
+      memories.put(id, value)
 
     def bindName(name: String, value: Value[FIRRTLBaseType]): Unit =
       byName(name) = value
 
     def data(data: Data): Option[Value[FIRRTLBaseType]] =
       Option(byData.get(data))
+
+    def memory(id: HasId): Option[Value[CMemoryType]] =
+      Option(memories.get(id))
 
     def name(name: String): Option[Value[FIRRTLBaseType]] =
       byName.get(name)
@@ -134,6 +144,59 @@ object ChiselImport:
           operand(builder, module, values, connect.exp, loc),
           loc,
         )
+      case mem: ir.DefMemory =>
+        values.bindMemory(
+          mem.id,
+          builder.combMemory(
+            mem.name,
+            elementType(mem.t),
+            mem.size,
+            location(mem.sourceInfo),
+          ),
+        )
+      case mem: ir.DefSeqMemory =>
+        values.bindMemory(
+          mem.id,
+          builder.seqMemory(
+            mem.name,
+            elementType(mem.t),
+            mem.size,
+            readUnderWrite(mem.readUnderWrite.toString),
+            location(mem.sourceInfo),
+          ),
+        )
+      case port: ir.DefMemPort[?] =>
+        val loc = location(port.sourceInfo)
+        val memory = port.source match
+          case ir.Node(id) =>
+            values.memory(id)
+              .getOrElse(
+                throw ImportError(
+                  s"unknown memory '${port.source.contextualName(module)}'"
+                )
+              )
+          case other =>
+            throw ImportError(
+              s"unsupported memory source ${other.getClass.getSimpleName}"
+            )
+        val (data, handle) = builder.memoryPort(
+          port.name,
+          memory,
+          memDirection(port.dir),
+          memory.typ.element,
+          loc,
+        )
+        builder.memoryPortAccess(
+          handle,
+          intValue(operand(builder, module, values, port.index, loc)),
+          clockValue(operand(builder, module, values, port.clock, loc)),
+          loc,
+        )
+        bind(module, values, port.id, data)
+      case _: ir.FirrtlMemory =>
+        throw ImportError(
+          "unsupported command FirrtlMemory: named-port memories are not modeled"
+        )
       case other =>
         throw ImportError(
           s"unsupported command ${other.getClass.getSimpleName}"
@@ -211,21 +274,25 @@ object ChiselImport:
   private def rtlType(
       data: Data,
       base: SpecifiedDirection = SpecifiedDirection.Unspecified,
+      allowAggregates: Boolean = false,
   ): FIRRTLBaseType =
     data match
       case _: Clock       => ClockType()
       case unsigned: UInt => UIntType(width(unsigned))
       case signed: SInt   => SIntType(width(signed))
       case record: Record =>
-        if base == SpecifiedDirection.Unspecified then
+        if !allowAggregates && base == SpecifiedDirection.Unspecified then
           throw ImportError("aggregate values are not supported yet")
-        bundleType(record, base)
+        bundleType(record, base, allowAggregates)
       case vector: Vec[?] =>
-        if base == SpecifiedDirection.Unspecified then
+        if !allowAggregates && base == SpecifiedDirection.Unspecified then
           throw ImportError("aggregate values are not supported yet")
         vector.getElements.headOption match
           case Some(element) =>
-            VectorType(rtlType(element, base), IntData(vector.length))
+            VectorType(
+              rtlType(element, base, allowAggregates),
+              IntData(vector.length),
+            )
           case None =>
             throw ImportError(
               "cannot infer the element type of an empty vector"
@@ -233,10 +300,15 @@ object ChiselImport:
       case other =>
         throw ImportError(s"unsupported type ${other.getClass.getSimpleName}")
 
+  // Type of a value with no handle of its own, such as a memory element.
+  private def elementType(data: Data): FIRRTLBaseType =
+    rtlType(data, allowAggregates = true)
+
   // constructs bundleType
   private def bundleType(
       record: Record,
       base: SpecifiedDirection,
+      allowAggregates: Boolean = false,
   ): BundleType =
     val fields = record._elements.toIndexedSeq.reverse.map {
       case (name, field) =>
@@ -253,7 +325,7 @@ object ChiselImport:
           case SpecifiedDirection.Unspecified => base
         BundleField(
           StringData(name),
-          rtlType(field, nestedBase),
+          rtlType(field, nestedBase, allowAggregates),
           IntegerAttr(IntData(if flip then 1 else 0), I1),
         )
     }
@@ -449,6 +521,21 @@ object ChiselImport:
         throw ImportError(
           s"expected an integer literal, got ${other.getClass.getSimpleName}"
         )
+
+  private def memDirection(direction: ir.MemPortDirection): MemDirEnum =
+    direction match
+      case ir.MemPortDirection.READ  => MemDirEnum.Read
+      case ir.MemPortDirection.WRITE => MemDirEnum.Write
+      case ir.MemPortDirection.RDWR  => MemDirEnum.ReadWrite
+      case ir.MemPortDirection.INFER => MemDirEnum.Infer
+
+  private def readUnderWrite(behavior: String): RuwBehaviorEnum =
+    behavior match
+      case "undefined" => RuwBehaviorEnum.Undefined
+      case "old"       => RuwBehaviorEnum.Old
+      case "new"       => RuwBehaviorEnum.New
+      case other       =>
+        throw ImportError(s"unknown read-under-write behavior '$other'")
 
   private def width(data: Data): IntData =
     if data.width.known then IntData(data.width.get) else unknownWidth

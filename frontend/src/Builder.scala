@@ -255,6 +255,64 @@ final class ModuleBuilder private[frontend] (
     block.addOp(op)
     op.result
 
+  def combMemory(
+      name: String,
+      element: FIRRTLBaseType,
+      depth: BigInt,
+      location: Location = UnknownLoc,
+  ): Value[CMemoryType] =
+    val op = CombMemOp(
+      result = Result(CMemoryType(element, IntData(depth))),
+      sym_name = StringData(name),
+      nameKind = NameKindEnum.InterestingName,
+      annotations = ArrayAttribute(),
+    ).at(location)
+    block.addOp(op)
+    op.result
+
+  def seqMemory(
+      name: String,
+      element: FIRRTLBaseType,
+      depth: BigInt,
+      ruw: RuwBehaviorEnum,
+      location: Location = UnknownLoc,
+  ): Value[CMemoryType] =
+    val op = SeqMemOp(
+      result = Result(CMemoryType(element, IntData(depth))),
+      ruw = ruw,
+      sym_name = StringData(name),
+      nameKind = NameKindEnum.InterestingName,
+      annotations = ArrayAttribute(),
+    ).at(location)
+    block.addOp(op)
+    op.result
+
+  def memoryPort(
+      name: String,
+      memory: Value[CMemoryType],
+      direction: MemDirEnum,
+      dataType: FIRRTLBaseType,
+      location: Location = UnknownLoc,
+  ): (Value[FIRRTLBaseType], Value[CMemoryPortType]) =
+    val op = MemoryPortOp(
+      data = Result(dataType),
+      port = Result(CMemoryPortType()),
+      memory = memory,
+      direction = direction,
+      sym_name = StringData(name),
+      annotations = ArrayAttribute(),
+    ).at(location)
+    block.addOp(op)
+    (op.data, op.port)
+
+  def memoryPortAccess(
+      port: Value[CMemoryPortType],
+      index: Value[IntType],
+      clock: Value[ClockType],
+      location: Location = UnknownLoc,
+  ): Unit =
+    block.addOp(MemoryPortAccessOp(port, index, clock).at(location))
+
   def connect(
       dest: Value[FIRRTLBaseType],
       src: Value[FIRRTLBaseType],

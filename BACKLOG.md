@@ -165,6 +165,35 @@ unsupported constructs remain represented.
 **Completion:** Implement the conversions, keep residual IR well-formed, and add
 execution coverage where a target exists.
 
+## CHIRRTL memory dialect
+
+**Problem:** The CHIRRTL memory types and five memory operations round-trip, but
+several of their properties are recorded without a consumer, and two spellings
+deviate from CIRCT.
+
+**Known constraints:** ScaIR registers attribute companions by a single name, so
+CIRCT's `RefType` — one type whose printed spelling switches between `probe` and
+`rwprobe` on a `forceable` parameter — cannot be one Scala type here. Only the
+non-forceable `!firrtl.probe<...>` exists, without the optional layer symbol
+reference. `inner_sym` is a plain optional string where CIRCT carries
+`hw.inner_name`, and `prefix` is inert without an `FNamableOp`. `combmem` and
+`seqmem` record `init`, `prefix`, and (for `seqmem`) `ruw`, and `memoryport`
+records `MemDirEnum.Infer`, but no pass reads any of them.
+The importer maps `DefMemory`, `DefSeqMemory`, and `DefMemPort`, but `when`
+regions and `DefInvalid` are unsupported: `SyncReadMem.read` wraps its access in
+a `when` and `WireDefault(..., DontCare)` emits an invalidation, so sequential
+reads and masked writes still fail to import, as does `FirrtlMemory`.
+
+**Decisions needed:** Whether a forceable probe type earns its own Scala class
+and the layer parameter, whether `inner_sym` stays an untyped attribute, whether
+a zero-length `cmemory` is legal (CIRCT accepts it, the FIRRTL spec requires a
+positive count), and where direction inference for `Infer` belongs once a
+lowering path exists.
+
+**Completion:** Add the reference operations that consume a probe, implement
+direction inference and memory initialization, and add fixtures for `rwprobe` and
+the optional properties once their consumers exist.
+
 ## CIRCT schema conformance
 
 **Problem:** The importer emits `firrtl.*` operations, but the module metadata is

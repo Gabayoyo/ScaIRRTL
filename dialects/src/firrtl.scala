@@ -340,6 +340,19 @@ enum LayerConventionEnum(name: String) extends I32Enum(name):
   case Bind extends LayerConventionEnum("bind")
   case Inline extends LayerConventionEnum("inline")
 
+/** Direction a memory port accesses the memory in. */
+enum MemDirEnum(name: String) extends I32Enum(name):
+  case Infer extends MemDirEnum("infer")
+  case Read extends MemDirEnum("read")
+  case Write extends MemDirEnum("write")
+  case ReadWrite extends MemDirEnum("readwrite")
+
+/** Read-under-write behavior of a sequential memory. */
+enum RuwBehaviorEnum(name: String) extends I32Enum(name):
+  case Undefined extends RuwBehaviorEnum("undefined")
+  case Old extends RuwBehaviorEnum("old")
+  case New extends RuwBehaviorEnum("new")
+
 /*≡==--==≡≡≡≡≡≡≡≡≡≡≡==--=≡≡*\
 ||         TYPES           ||
 \*≡==---==≡≡≡≡≡≡==---==≡*/
@@ -505,12 +518,36 @@ object VectorType:
             Fail(s"expected a FIRRTL vector element type, got $other")
       }
 
-// [TODO]     AnalogType, ResetType, AsyncResetType, RefType, and FEnumType.
-//            RefType is required before a forceable wire can expose its `ref`
-//            result.
+/** A read-only reference to a passive value elsewhere in the design. */
+final case class ProbeType(element: FIRRTLBaseType)
+    extends FIRRTLType
+    with DerivedAttribute["firrtl.probe"] derives AttrDefs:
+
+  override def customVerify(): OK[Unit] =
+    if !isPassive(element) then Err("reference base type must be passive")
+    else OK(())
+
+/** The file a memory's contents are initialized from. */
+final case class MemoryInitAttr(
+    filename: StringData,
+    isBinary: IntegerAttr,
+    isInline: IntegerAttr,
+) extends DerivedAttribute["firrtl.meminit"] derives AttrDefs:
+
+  override def customVerify(): OK[Unit] =
+    if isBinary.typ != I1 || isInline.typ != I1 then
+      Err("meminit flags must be i1 attributes")
+    else OK(())
+
+// [TODO]     AnalogType, ResetType, AsyncResetType, and FEnumType.
+// [TODO]     the forceable `rwprobe` spelling of a reference, which carries an
+//            optional layer symbol reference and is what a forceable wire's
+//            `ref` result needs.
 // [TODO]     every CIRCT base type also carries an `isConst` parameter, spelled
 //            with a `const.` prefix on the type name.
 // [TODO]     reject a negative width when parsing, as CIRCT does.
+// [TODO]     the file-loading semantics of `firrtl.meminit`, which only records
+//            the filename and format until a lowering pass consumes it.
 
 case class CircuitOp(
     body: Region,
@@ -882,7 +919,15 @@ case class AddOp(
   //        and/or/xor, cat, bits)
 
 val FIRRTLDialect: Dialect = summonDialect[
-  (UIntType, SIntType, ClockType, BundleType, VectorType),
+  (
+      UIntType,
+      SIntType,
+      ClockType,
+      BundleType,
+      VectorType,
+      ProbeType,
+      MemoryInitAttr,
+  ),
   (
       CircuitOp,
       ModuleOp,

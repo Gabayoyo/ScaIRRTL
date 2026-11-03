@@ -40,3 +40,25 @@ class VecTiny extends Module:
     val y = Output(UInt(8.W)))
 
   io.y := io.a(0)
+
+class CombMemTiny extends Module:
+
+  val io = IO(new Bundle:
+    val addr = Input(UInt(4.W))
+    val wdata = Input(UInt(8.W))
+    val rdata = Output(UInt(8.W)))
+
+  val mem = Mem(16, UInt(8.W))
+  mem.write(io.addr, io.wdata)
+  io.rdata := mem.read(io.addr)
+
+class SeqMemTiny extends Module:
+
+  val io = IO(new Bundle:
+    val addr = Input(UInt(4.W))
+    val wdata = Input(UInt(8.W))
+    val y = Output(UInt(8.W)))
+
+  val mem = SyncReadMem(16, UInt(8.W), SyncReadMem.ReadFirst)
+  mem.write(io.addr, io.wdata)
+  io.y := io.wdata

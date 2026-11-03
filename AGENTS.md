@@ -38,9 +38,12 @@ Scala 3 that is compatible with MLIR. It is written in Scala 3 using the
 
 The repository owns the Scala implementation of the `firrtl.*` dialect — its
 types, operations, and assembly — and the `scairrtl-opt` driver that parses,
-verifies, transforms, and prints IR built from it. The namespace mirrors CIRCT's
-FIRRTL dialect while the Scala package remains `scairrtl`; attribute spellings
-and port-direction/annotation encodings still differ from CIRCT's schema.
+verifies, transforms, and prints IR built from it. `dialects/src/chirrtl.scala`
+adds the CHIRRTL memory dialect — `!chirrtl.cmemory`, `!chirrtl.cmemoryport`,
+and the memory declaration, port, and debug-port operations — registered as a
+second `Dialect`. The namespace mirrors CIRCT's FIRRTL dialect while the Scala
+package remains `scairrtl`; attribute spellings and port-direction/annotation
+encodings still differ from CIRCT's schema.
 
 ## Build commands
 
@@ -73,6 +76,7 @@ build.mill               # Mill build definition
 dialects/
   src/
     firrtl.scala         # firrtl.* types and operations
+    chirrtl.scala        # chirrtl.* memory types and operations
 opt/
   src/
     Opt.scala            # scairrtl.main.Main: scopt-based scairrtl-opt CLI
@@ -89,6 +93,7 @@ tests/
   filecheck/
     lit.cfg              # scairrtl-opt substitution, SCAIRRTL_OPT override, MLIR features
     dialects/            # Dialect IR: types, structure, declarations, statements
+    dialects/errors/     # Verifier and parser diagnostics
     opt/                 # Driver behavior, MLIR input handling, and execution
 ```
 
@@ -107,11 +112,17 @@ invoking lit. Conversion passes get their own module when lowering work begins.
   and `opt` stay Chisel-free. `ChiselCircuit` lives in `package chisel3` because
   the internal circuit is package-private; code that names those internal types
   must live there too. `ChiselImport` walks `DefWire`, `DefReg`, `DefRegInit`,
-  `DefPrim` (`add`, `mux`, `bits`, comparisons), and `Connect`; other commands
-  are reported as errors. Bundle and vector ports are preserved as
+  `DefPrim` (`add`, `mux`, `bits`, comparisons), `Connect`, `DefMemory`,
+  `DefSeqMemory`, and `DefMemPort`; other commands are reported as errors.
+  Memories import as the CHIRRTL types and operations — `DefMemory` becomes
+  `chirrtl.combmem`, `DefSeqMemory` becomes `chirrtl.seqmem`, and each
+  `DefMemPort` becomes a `chirrtl.memoryport` with its
+  `chirrtl.memoryport.access`. Bundle and vector ports are preserved as
   `BundleType`/`VectorType`, with `subfield`/`subindex` projections for field
-  access. Aggregate wires/registers and dynamic vector indexing remain
-  unsupported. Port locations, annotations, and symbols are not encoded yet.
+  access. Aggregate wires/registers, dynamic vector indexing, `Conditional`
+  (`when`) regions, `DefInvalid`, and `FirrtlMemory` remain unsupported, which
+  also means `SyncReadMem.read` (wrapped in a `when`) and masked writes cannot
+  import yet. Port locations, annotations, and symbols are not encoded yet.
 - **scopt** — command-line argument parsing in `opt/`.
 - **mill-scalafix** — scalafix is wired into the `ScaIRRTLModule` trait and runs
   via `./mill format`.
@@ -145,9 +156,11 @@ verified, run through the selected passes, then printed or executed.
   --convert-to-llvm` and `mlir-runner -e main --entry-point-result=i32`. Select
   the required lowering passes explicitly before execution.
 - Dialects are registered by appending them to `scair.dialects.allDialects`,
-  which `Main` registers with a single `MLContext` at startup. That context is
-  shared for the whole run, so dialect and pass registration must be complete
-  before the first parse.
+  which `Main` registers with a single `MLContext` at startup. `Main` appends
+  both `FIRRTLDialect` and `CHIRRTLDialect`, and lookup is by the definition's
+  fully-qualified name, so a type or operation missing from those tuples cannot
+  be parsed. That context is shared for the whole run, so dialect and pass
+  registration must be complete before the first parse.
 
 ## Defining dialect types and operations
 
@@ -188,7 +201,9 @@ ScaIRRTL follows ScaIR's derivation style rather than a tablegen-style DSL.
   the circuit's and a wire's, are spelled `sym_name` here.
 - Every type and operation is listed in the `summonDialect` tuple, which produces
   the dialect value registered with the context. A definition missing from that
-  tuple is not part of the dialect.
+  tuple is not part of the dialect. A one-entry list is written
+  `X *: EmptyTuple` — `(X,)` is not a tuple type — and the operations tuple may
+  be `EmptyTuple` for a types-only dialect.
 - Generic assembly is the default. Custom printing and parsing are opt-in
   and must be provided together: `customPrint(p: Printer)` plus a
   `given AttributeCustomParser[T]`, or `given OperationCustomParser[T]` for

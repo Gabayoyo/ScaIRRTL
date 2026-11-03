@@ -18,6 +18,16 @@ FIRRTL dialect. `dialects/src/firrtl.scala` defines:
 - **Expressions** — `firrtl.add`, plus `firrtl.subfield` and `firrtl.subindex`
   for aggregate field access.
 
+`dialects/src/chirrtl.scala` defines the CHIRRTL memory dialect: the types
+`!chirrtl.cmemory<element, depth>` for a behavioral memory and
+`!chirrtl.cmemoryport` for a port declared on one; `chirrtl.combmem` and
+`chirrtl.seqmem` for declaring those memories, optionally initialized from a
+`#firrtl.meminit<filename, isBinary, isInline>` file; `chirrtl.memoryport` and
+`chirrtl.memoryport.access` for declaring a port and enabling it on an index at
+a clock edge; and `chirrtl.debugport`, whose result is the read-only
+`!firrtl.probe<...>` reference type. The Chisel importer builds these from a
+memory's declaration and each of its ports.
+
 Generic assembly is the only syntax for now: every operation parses, verifies,
 prints, and round-trips through `scairrtl-opt`, but none has custom assembly.
 Definitions carry trailing comment blocks recording what each operation still
