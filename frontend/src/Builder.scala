@@ -54,7 +54,10 @@ final class ModuleBuilder private[frontend] (
     convention: ConventionEnum,
 ):
 
-  private val block = Block(ports.map(_.tpe), Seq.empty[Operation])
+  private val entryBlock = Block(ports.map(_.tpe), Seq.empty[Operation])
+
+  // The block receiving new operations; `when` swaps it while building a region.
+  private var block: Block = entryBlock
 
   private val portValueTable: Map[String, Value[FIRRTLBaseType]] =
     val names = ports.map(_.name)
@@ -62,7 +65,7 @@ final class ModuleBuilder private[frontend] (
       names.distinct.size == names.size,
       s"duplicate port names in module '$name': ${names.mkString(", ")}",
     )
-    ports.zip(block.arguments.toSeq).map { case (spec, value) =>
+    ports.zip(entryBlock.arguments.toSeq).map { case (spec, value) =>
       spec.name -> value.asInstanceOf[Value[FIRRTLBaseType]]
     }.toMap
 
@@ -107,7 +110,7 @@ final class ModuleBuilder private[frontend] (
       name: String,
       tpe: T,
       clock: Value[ClockType],
-      reset: Value[UIntType],
+      reset: Value[FIRRTLBaseType],
       init: Value[T],
       nameKind: NameKindEnum = NameKindEnum.InterestingName,
       location: Location = UnknownLoc,
@@ -144,6 +147,162 @@ final class ModuleBuilder private[frontend] (
       location: Location = UnknownLoc,
   ): Value[IntType] =
     val op = AddOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def sub(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = SubOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def mul(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = MulOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def div(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = DivOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def rem(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = RemOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def bitAnd(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = AndOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def bitOr(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = OrOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def bitXor(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = XorOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def bitNot(
+      input: Value[IntType],
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = NotOp(input, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def andReduce(
+      input: Value[IntType],
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = AndReduceOp(input, Result(UIntType(IntData(1)))).at(location)
+    block.addOp(op)
+    op.result
+
+  def orReduce(
+      input: Value[IntType],
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = OrReduceOp(input, Result(UIntType(IntData(1)))).at(location)
+    block.addOp(op)
+    op.result
+
+  def xorReduce(
+      input: Value[IntType],
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = XorReduceOp(input, Result(UIntType(IntData(1)))).at(location)
+    block.addOp(op)
+    op.result
+
+  def cat(
+      lhs: Value[IntType],
+      rhs: Value[IntType],
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = CatOp(lhs, rhs, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def dynamicShiftLeft(
+      input: Value[IntType],
+      amount: Value[UIntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = DshlOp(input, amount, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def dynamicShiftRight(
+      input: Value[IntType],
+      amount: Value[UIntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = DshrOp(input, amount, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def pad(
+      input: Value[IntType],
+      resultType: IntType,
+      location: Location = UnknownLoc,
+  ): Value[IntType] =
+    val op = PadOp(input, Result(resultType)).at(location)
+    block.addOp(op)
+    op.result
+
+  def tail(
+      input: Value[IntType],
+      n: Int,
+      resultType: UIntType,
+      location: Location = UnknownLoc,
+  ): Value[UIntType] =
+    val op = TailOp(
+      input = input,
+      n = IntegerAttr(IntData(n), I32),
+      result = Result(resultType),
+    ).at(location)
     block.addOp(op)
     op.result
 
@@ -255,6 +414,27 @@ final class ModuleBuilder private[frontend] (
     block.addOp(op)
     op.result
 
+  /** Builds `firrtl.when`; the first region is the then-region, and the second
+    * is added only when `hasElse` is set.
+    */
+  def when(
+      cond: Value[UIntType],
+      hasElse: Boolean,
+      location: Location = UnknownLoc,
+  )(thenBody: => Unit)(elseBody: => Unit): Unit =
+    val thenRegion = region(thenBody)
+    val elseRegions = if hasElse then Seq(region(elseBody)) else Seq.empty
+    block.addOp(WhenOp(cond, thenRegion +: elseRegions).at(location))
+
+  // Collects the operations of `body` into a region with one block.
+  private def region(body: => Unit): Region =
+    val previous = block
+    val inner = Block(Seq.empty[Operation])
+    block = inner
+    try body
+    finally block = previous
+    Region(inner)
+
   def combMemory(
       name: String,
       element: FIRRTLBaseType,
@@ -323,7 +503,7 @@ final class ModuleBuilder private[frontend] (
   private[frontend] def finish(): ModuleOp =
     val portTypes = ports.map(_.tpe)
     ModuleOp(
-      body = Region(block),
+      body = Region(entryBlock),
       sym_name = StringData(name),
       port_directions = ArrayAttribute[Attribute](ports.map(_.direction)*),
       port_types = ArrayAttribute[Attribute](portTypes*),

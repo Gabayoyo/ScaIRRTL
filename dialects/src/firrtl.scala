@@ -240,6 +240,31 @@ trait OneBitOperands extends Operation:
         )
     checked.flatMap(_ => super.traitVerify())
 
+/** The listed operand positions hold a reset signal: a one-bit unsigned value,
+  * or an abstract reset type.
+  */
+trait ResetOperands extends Operation:
+
+  /** Operand positions that must hold a reset signal. */
+  def resetOperands: Seq[Int]
+
+  override def traitVerify(): OK[Operation] =
+    val offending = resetOperands.filter { index =>
+      operands.lift(index).map(_.typ) match
+        case Some(UIntType(width))   => width.value > 1
+        case Some(_: ResetType)      => false
+        case Some(_: AsyncResetType) => false
+        case _                       => true
+    }
+    val checked =
+      if offending.isEmpty then OK(this)
+      else
+        Err(
+          s"Operation '$name' needs a reset signal at operand " +
+            offending.mkString(", ")
+        )
+    checked.flatMap(_ => super.traitVerify())
+
 /** A `bits` selection is ordered, non-negative, and inside the input width. */
 trait BitsSelectionRange extends Operation:
 
@@ -310,6 +335,33 @@ private def widerWidth(left: IntData, right: IntData): IntData =
 private def addedWidth(left: IntData, right: IntData): IntData =
   if left.value < 0 || right.value < 0 then unknownWidth
   else IntData(left.value.max(right.value) + 1)
+
+// The sum of two widths, or uninferred when either input is.
+private def summedWidth(left: IntData, right: IntData): IntData =
+  if left.value < 0 || right.value < 0 then unknownWidth
+  else IntData(left.value + right.value)
+
+// The narrower of two widths, or uninferred when either input is.
+private def minimumWidth(left: IntData, right: IntData): IntData =
+  if left.value < 0 || right.value < 0 then unknownWidth
+  else IntData(left.value.min(right.value))
+
+// The width of an integer type, with a negative value marking an uninferred one.
+private def widthOf(tpe: IntType): IntData =
+  tpe match
+    case UIntType(width) => width
+    case SIntType(width) => width
+
+// `input` shifted by an `amount`-bit distance, or uninferred when either input is.
+private def shiftedWidth(input: IntData, amount: IntData): IntData =
+  if input.value < 0 || amount.value < 0 then unknownWidth
+  else IntData(input.value + (BigInt(1) << amount.value.toInt) - 1)
+
+// The same signedness as `declared`, carrying `width`.
+private def intWithWidth(declared: FIRRTLBaseType, width: IntData): IntType =
+  declared match
+    case _: SIntType => SIntType(width)
+    case _           => UIntType(width)
 
 /*≡==--==≡≡≡≡≡≡≡≡≡≡≡==--=≡≡*\
 ||         ENUMS           ||
@@ -414,6 +466,16 @@ object SIntType:
 final case class ClockType()
     extends FIRRTLBaseType
     with DerivedAttribute["firrtl.clock"] derives AttrDefs
+
+/** The abstract reset type, later inferred to synchronous or asynchronous. */
+final case class ResetType()
+    extends FIRRTLBaseType
+    with DerivedAttribute["firrtl.reset"] derives AttrDefs
+
+/** The asynchronous reset type. */
+final case class AsyncResetType()
+    extends FIRRTLBaseType
+    with DerivedAttribute["firrtl.asyncreset"] derives AttrDefs
 
 /** One field of a FIRRTL bundle type. */
 final case class BundleField(
@@ -539,7 +601,7 @@ final case class MemoryInitAttr(
       Err("meminit flags must be i1 attributes")
     else OK(())
 
-// [TODO]     AnalogType, ResetType, AsyncResetType, and FEnumType.
+// [TODO]     AnalogType and FEnumType.
 // [TODO]     the forceable `rwprobe` spelling of a reference, which carries an
 //            optional layer symbol reference and is what a forceable wire's
 //            `ref` result needs.
@@ -685,15 +747,16 @@ case class WireOp(
 ) extends DerivedOperation["firrtl.wire"]
     with HasParent derives OpDefs:
 
-  def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
+  def permittedParents: Seq[Class[? <: Operation]] =
+    Seq(classOf[ModuleOp], classOf[WhenOp])
 
   // [HIGH] nameKind is recorded but nothing consumes it, so no name is preserved
   //        yet. TODO: a name-preservation pass.
   // [HIGH] CIRCT splits the name into a plain string plus an optional inner_sym;
   //        `sym_name` covers only the first, so lookup has no home. TODO
   // [TODO] domains operand, and the optional ref result
-  // [TODO] permittedParents should also admit LayerBlockOp, WhenOp and MatchOp
-  //        once those exist.
+  // [TODO] permittedParents should also admit LayerBlockOp and MatchOp once
+  //        those exist.
   // [TODO] ForceableOpInterface, whose verifier is what makes `forceable`
   //        meaningful; FNamableOpInterface, OpAsmOpInterface (CIRCT's
   //        HasCustomSSAName), InnerSymbolOpInterface, SymbolUserOpInterface
@@ -713,7 +776,8 @@ case class RegOp(
   def operandResultTypes: Seq[Class[? <: Attribute]] =
     Seq(classOf[ClockType], classOf[FIRRTLBaseType])
 
-  def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
+  def permittedParents: Seq[Class[? <: Operation]] =
+    Seq(classOf[ModuleOp], classOf[WhenOp])
 
   // [TODO] the result type has no reset value to infer from, so a wrong width
   //        goes unchecked.
@@ -722,7 +786,7 @@ case class RegOp(
 case class RegResetOp(
     result: Result[FIRRTLBaseType],
     clock: Operand[ClockType],
-    reset: Operand[UIntType],
+    reset: Operand[FIRRTLBaseType],
     init: Operand[FIRRTLBaseType],
     sym_name: StringData,
     nameKind: NameKindEnum,
@@ -730,26 +794,58 @@ case class RegResetOp(
     forceable: Option[UnitAttr] = None,
 ) extends DerivedOperation["firrtl.regreset"]
     with OperandAndResultTypes
-    with OneBitOperands
+    with ResetOperands
     with InfersResultTypes
     with HasParent derives OpDefs:
 
   def operandResultTypes: Seq[Class[? <: Attribute]] =
     Seq(
       classOf[ClockType],
-      classOf[UIntType],
+      classOf[FIRRTLBaseType],
       classOf[FIRRTLBaseType],
       classOf[FIRRTLBaseType],
     )
 
-  def oneBitOperands: Seq[Int] = Seq(1)
+  def resetOperands: Seq[Int] = Seq(1)
 
   def inferResultTypes: Seq[Attribute] = Seq(init.typ)
 
-  def permittedParents: Seq[Class[? <: Operation]] = Seq(classOf[ModuleOp])
+  def permittedParents: Seq[Class[? <: Operation]] =
+    Seq(classOf[ModuleOp], classOf[WhenOp])
 
   // [TODO] Chisel emits `firrtl.random_init_start` on every register as a
   //        discardable attribute; there is nowhere to declare it here.
+
+/** Executes `body(0)` when `condition` is set and `body(1)`, when present,
+  * otherwise.
+  */
+case class WhenOp(
+    condition: Operand[UIntType],
+    body: Seq[Region],
+) extends DerivedOperation["firrtl.when"]
+    with OperandAndResultTypes
+    with OneBitOperands
+    with SingleBlock
+    with NoTerminator
+    with HasParent derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[UIntType])
+
+  def oneBitOperands: Seq[Int] = Seq(0)
+
+  def permittedParents: Seq[Class[? <: Operation]] =
+    Seq(classOf[ModuleOp], classOf[WhenOp])
+
+  override def traitVerify(): OK[Operation] =
+    if body.length < 1 || body.length > 2 then
+      Err(s"Operation '$name' needs one or two body regions")
+    else super.traitVerify()
+
+  // [HIGH] the operation has no lowering or canonicalization, so nested connects
+  //        and declarations stay conditional only in name. TODO
+  // [TODO] the sibling `firrtl.match`, layer-block parent, RecursiveMemoryEffects,
+  //        and a custom syntax for `when`/`else`.
 
 /** Connects two values whose types must match exactly. */
 case class MatchingConnectOp(
@@ -915,14 +1011,285 @@ case class AddOp(
       // Mixed signedness is SameOperandsIntTypeKind's diagnostic, not this one.
       case _ => results.map(_.typ)
 
-  // [TODO] HasCustomSSAName, and the sibling primitives (sub, mul, div, rem,
-  //        and/or/xor, cat, bits)
+  // [TODO] HasCustomSSAName
+  // [TODO] the sibling primitives still absent from the dialect: shl, shr,
+  //        head, asUInt, asSInt, asClock, asReset, asAsyncReset, neg, cvt
+
+/** An integer operation whose result keeps its declared signedness and whose
+  * width follows the operation's rule.
+  */
+sealed trait ArithmeticOp
+    extends Operation
+    with SameOperandsIntTypeKind
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def lhs: Operand[IntType]
+  def rhs: Operand[IntType]
+  def result: Result[IntType]
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[IntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(intWithWidth(result.typ, resultWidth))
+
+  /** The width this operation's rule gives, or an uninferred width. */
+  def resultWidth: IntData
+
+/** Subtracts two integers of the same signedness. */
+case class SubOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.sub"]
+    with ArithmeticOp derives OpDefs:
+
+  def resultWidth: IntData = addedWidth(widthOf(lhs.typ), widthOf(rhs.typ))
+
+/** Multiplies two integers of the same signedness. */
+case class MulOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.mul"]
+    with ArithmeticOp
+    with Commutative derives OpDefs:
+
+  def resultWidth: IntData = summedWidth(widthOf(lhs.typ), widthOf(rhs.typ))
+
+/** Divides two integers of the same signedness. */
+case class DivOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.div"]
+    with ArithmeticOp derives OpDefs:
+
+  def resultWidth: IntData =
+    lhs.typ match
+      case UIntType(width) => width
+      case SIntType(width) =>
+        if width.value < 0 then unknownWidth else IntData(width.value + 1)
+
+/** Takes the remainder of dividing two integers of the same signedness. */
+case class RemOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.rem"]
+    with ArithmeticOp derives OpDefs:
+
+  def resultWidth: IntData = minimumWidth(widthOf(lhs.typ), widthOf(rhs.typ))
+
+/** A bitwise binary operation, whose result is unsigned. */
+sealed trait BitwiseBinaryOp
+    extends Operation
+    with SameOperandsIntTypeKind
+    with Commutative
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def lhs: Operand[IntType]
+  def rhs: Operand[IntType]
+  def result: Result[UIntType]
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(UIntType(widerWidth(widthOf(lhs.typ), widthOf(rhs.typ))))
+
+case class AndOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.and"]
+    with BitwiseBinaryOp derives OpDefs
+
+case class OrOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.or"]
+    with BitwiseBinaryOp derives OpDefs
+
+case class XorOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.xor"]
+    with BitwiseBinaryOp derives OpDefs
+
+/** Complements every bit of an integer, producing an unsigned result. */
+case class NotOp(
+    input: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.not"]
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(UIntType(widthOf(input.typ)))
+
+/** A bitwise reduction over every bit of an integer. */
+sealed trait ReductionOp
+    extends Operation
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def input: Operand[IntType]
+  def result: Result[UIntType]
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] = Seq(UIntType(IntData(1)))
+
+case class AndReduceOp(
+    input: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.andr"]
+    with ReductionOp derives OpDefs
+
+case class OrReduceOp(
+    input: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.orr"]
+    with ReductionOp derives OpDefs
+
+case class XorReduceOp(
+    input: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.xorr"]
+    with ReductionOp derives OpDefs
+
+/** Concatenates two integers, placing the first at the most significant end. */
+case class CatOp(
+    lhs: Operand[IntType],
+    rhs: Operand[IntType],
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.cat"]
+    with SameOperandsIntTypeKind
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(UIntType(summedWidth(widthOf(lhs.typ), widthOf(rhs.typ))))
+
+/** A dynamic shift whose result keeps its declared signedness. */
+sealed trait DynamicShiftOp
+    extends Operation
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes:
+
+  def input: Operand[IntType]
+  def amount: Operand[UIntType]
+  def result: Result[IntType]
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[UIntType], classOf[IntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    Seq(intWithWidth(result.typ, resultWidth))
+
+  /** The width this operation's rule gives, or an uninferred width. */
+  def resultWidth: IntData
+
+/** Shifts `input` left by the number of places `amount` names. */
+case class DshlOp(
+    input: Operand[IntType],
+    amount: Operand[UIntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.dshl"]
+    with DynamicShiftOp derives OpDefs:
+
+  def resultWidth: IntData =
+    shiftedWidth(widthOf(input.typ), amount.typ.width)
+
+/** Shifts `input` right by the number of places `amount` names. */
+case class DshrOp(
+    input: Operand[IntType],
+    amount: Operand[UIntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.dshr"]
+    with DynamicShiftOp derives OpDefs:
+
+  def resultWidth: IntData = widthOf(input.typ)
+
+/** Widens an integer to its result type's width. */
+case class PadOp(
+    input: Operand[IntType],
+    result: Result[IntType],
+) extends DerivedOperation["firrtl.pad"]
+    with Pure
+    with OperandAndResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[IntType])
+
+  override def traitVerify(): OK[Operation] =
+    val sameKind = (input.typ, result.typ) match
+      case (_: UIntType, _: UIntType) => true
+      case (_: SIntType, _: SIntType) => true
+      case _                          => false
+    if !sameKind then
+      Err(s"Operation '$name' must keep the signedness of its input")
+    else
+      (widthOf(input.typ).value, widthOf(result.typ).value) match
+        case (in, out) if in >= 0 && out >= 0 && out < in =>
+          Err(s"Operation '$name' result width $out is narrower than $in")
+        case _ => super.traitVerify()
+
+/** Drops the `n` least-significant bits of an integer. */
+case class TailOp(
+    input: Operand[IntType],
+    n: IntegerAttr,
+    result: Result[UIntType],
+) extends DerivedOperation["firrtl.tail"]
+    with Pure
+    with OperandAndResultTypes
+    with InfersResultTypes derives OpDefs:
+
+  def operandResultTypes: Seq[Class[? <: Attribute]] =
+    Seq(classOf[IntType], classOf[UIntType])
+
+  def inferResultTypes: Seq[Attribute] =
+    val count = n.value.value
+    widthOf(input.typ) match
+      case width if width.value < 0 => Seq(UIntType(unknownWidth))
+      case width => Seq(UIntType(IntData(width.value - count)))
+
+  override def traitVerify(): OK[Operation] =
+    if n.typ != I32 then Err("tail n must be an i32 attribute")
+    else
+      val count = n.value.value
+      val width = widthOf(input.typ).value
+      if count < 0 || (width >= 0 && count > width) then
+        Err(
+          s"Operation '$name' cannot drop $count bits from a $width-bit input"
+        )
+      else super.traitVerify()
 
 val FIRRTLDialect: Dialect = summonDialect[
   (
       UIntType,
       SIntType,
       ClockType,
+      ResetType,
+      AsyncResetType,
       BundleType,
       VectorType,
       ProbeType,
@@ -935,6 +1302,7 @@ val FIRRTLDialect: Dialect = summonDialect[
       WireOp,
       RegOp,
       RegResetOp,
+      WhenOp,
       MatchingConnectOp,
       ConstantOp,
       MuxOp,
@@ -948,5 +1316,21 @@ val FIRRTLDialect: Dialect = summonDialect[
       GtOp,
       GeqOp,
       AddOp,
+      SubOp,
+      MulOp,
+      DivOp,
+      RemOp,
+      AndOp,
+      OrOp,
+      XorOp,
+      NotOp,
+      AndReduceOp,
+      OrReduceOp,
+      XorReduceOp,
+      CatOp,
+      DshlOp,
+      DshrOp,
+      PadOp,
+      TailOp,
   ),
 ]
