@@ -9,14 +9,18 @@ The dialect is at an early stage and is spelled `firrtl.*`, mirroring CIRCT's
 FIRRTL dialect. `dialects/src/firrtl.scala` defines:
 
 - **Types** — `!firrtl.uint<N>` and `!firrtl.sint<N>`, each also spellable
-  without a width while that width is still uninferred, `!firrtl.clock`, and
-  aggregate `!firrtl.bundle<...>` / `!firrtl.vector<...>` types.
+  without a width while that width is still uninferred, `!firrtl.clock`,
+  `!firrtl.reset`, `!firrtl.asyncreset`, and aggregate
+  `!firrtl.bundle<...>` / `!firrtl.vector<...>` types.
 - **Structure** — `firrtl.circuit`, `firrtl.module`, and `firrtl.layer`,
   each owning a body region and acting as a symbol table.
-- **Declarations and statements** — `firrtl.wire` and
-  `firrtl.matchingconnect`.
-- **Expressions** — `firrtl.add`, plus `firrtl.subfield` and `firrtl.subindex`
-  for aggregate field access.
+- **Declarations and statements** — `firrtl.wire`, `firrtl.matchingconnect`,
+  and `firrtl.when`, whose body regions hold conditional operations.
+- **Expressions** — `firrtl.add`, `firrtl.sub`, `firrtl.mul`, `firrtl.div`,
+  `firrtl.rem`, the bitwise `firrtl.and`/`or`/`xor`/`not`, the reductions
+  `firrtl.andr`/`orr`/`xorr`, `firrtl.cat`, `firrtl.dshl`/`dshr`,
+  `firrtl.pad`, `firrtl.tail`, `firrtl.bits`, `firrtl.mux`, comparisons, and
+  `firrtl.subfield`/`subindex` for aggregate field access.
 
 `dialects/src/chirrtl.scala` defines the CHIRRTL memory dialect: the types
 `!chirrtl.cmemory<element, depth>` for a behavioral memory and
@@ -26,7 +30,24 @@ FIRRTL dialect. `dialects/src/firrtl.scala` defines:
 `chirrtl.memoryport.access` for declaring a port and enabling it on an index at
 a clock edge; and `chirrtl.debugport`, whose result is the read-only
 `!firrtl.probe<...>` reference type. The Chisel importer builds these from a
-memory's declaration and each of its ports.
+memory's declaration and each of its ports, and imports Chisel enum-typed
+signals as unsigned integers of the enum's width.
+
+`scairrtl.frontend.EmitMLIR` prints a translated `firrtl.circuit` — the
+firrtl and chirrtl operations produced by the importer — as MLIR assembly, to a
+`String`, a caller-supplied `Writer`, or a `.mlir` file:
+
+```scala
+import scairrtl.frontend.*
+
+for
+  circuit <- ChiselStage.elaborate(new MyModule).toCircuitOp
+  path    <- EmitMLIR.writeToFile(circuit, Path.of("build/mlir/MyModule.mlir"))
+yield path
+```
+
+`EmitMLIR.pathFor` derives the file path from the circuit's name, and
+`EmitOptions` toggles generic assembly and source locations.
 
 Generic assembly is the only syntax for now: every operation parses, verifies,
 prints, and round-trips through `scairrtl-opt`, but none has custom assembly.

@@ -124,7 +124,7 @@ object ChiselImport:
           reg.name,
           rtlType(reg.id),
           clockValue(operand(builder, module, values, reg.clock, loc)),
-          uintValue(operand(builder, module, values, reg.reset, loc)),
+          operand(builder, module, values, reg.reset, loc),
           operand(builder, module, values, reg.init, loc),
           location = loc,
         )
@@ -144,6 +144,19 @@ object ChiselImport:
           operand(builder, module, values, connect.exp, loc),
           loc,
         )
+      case when: ir.When =>
+        val loc = location(when.sourceInfo)
+        builder.when(
+          uintValue(operand(builder, module, values, when.pred, loc)),
+          when.hasElse,
+          loc,
+        ) {
+          when.ifRegion.getAllCommands()
+            .foreach(ChiselImport.command(builder, module, values, _))
+        } {
+          when.elseRegion.getAllCommands()
+            .foreach(ChiselImport.command(builder, module, values, _))
+        }
       case mem: ir.DefMemory =>
         values.bindMemory(
           mem.id,
@@ -193,6 +206,10 @@ object ChiselImport:
           loc,
         )
         bind(module, values, port.id, data)
+      case placeholder: ir.Placeholder =>
+        ir.Placeholder.unapply(placeholder).foreach { case (_, nested) =>
+          nested.foreach(ChiselImport.command(builder, module, values, _))
+        }
       case _: ir.FirrtlMemory =>
         throw ImportError(
           "unsupported command FirrtlMemory: named-port memories are not modeled"
@@ -220,6 +237,72 @@ object ChiselImport:
       case "add" =>
         builder
           .add(intValue(arg(0)), intValue(arg(1)), intType(resultType), loc)
+      case "sub" =>
+        builder
+          .sub(intValue(arg(0)), intValue(arg(1)), intType(resultType), loc)
+      case "mul" =>
+        builder
+          .mul(intValue(arg(0)), intValue(arg(1)), intType(resultType), loc)
+      case "div" =>
+        builder
+          .div(intValue(arg(0)), intValue(arg(1)), intType(resultType), loc)
+      case "rem" =>
+        builder
+          .rem(intValue(arg(0)), intValue(arg(1)), intType(resultType), loc)
+      case "and" =>
+        builder.bitAnd(
+          intValue(arg(0)),
+          intValue(arg(1)),
+          uintType(resultType),
+          loc,
+        )
+      case "or" =>
+        builder.bitOr(
+          intValue(arg(0)),
+          intValue(arg(1)),
+          uintType(resultType),
+          loc,
+        )
+      case "xor" =>
+        builder.bitXor(
+          intValue(arg(0)),
+          intValue(arg(1)),
+          uintType(resultType),
+          loc,
+        )
+      case "not" =>
+        builder.bitNot(intValue(arg(0)), uintType(resultType), loc)
+      case "andr" =>
+        builder.andReduce(intValue(arg(0)), loc)
+      case "orr" =>
+        builder.orReduce(intValue(arg(0)), loc)
+      case "xorr" =>
+        builder.xorReduce(intValue(arg(0)), loc)
+      case "cat" =>
+        builder.cat(
+          intValue(arg(0)),
+          intValue(arg(1)),
+          uintType(resultType),
+          loc,
+        )
+      case "dshl" =>
+        builder.dynamicShiftLeft(
+          intValue(arg(0)),
+          uintValue(arg(1)),
+          intType(resultType),
+          loc,
+        )
+      case "dshr" =>
+        builder.dynamicShiftRight(
+          intValue(arg(0)),
+          uintValue(arg(1)),
+          intType(resultType),
+          loc,
+        )
+      case "pad" =>
+        builder.pad(intValue(arg(0)), intType(resultType), loc)
+      case "tail" =>
+        builder.tail(intValue(arg(0)), intArg(1), uintType(resultType), loc)
       case "mux" =>
         builder.mux(
           uintValue(arg(0)),
@@ -277,10 +360,14 @@ object ChiselImport:
       allowAggregates: Boolean = false,
   ): FIRRTLBaseType =
     data match
-      case _: Clock       => ClockType()
-      case unsigned: UInt => UIntType(width(unsigned))
-      case signed: SInt   => SIntType(width(signed))
-      case record: Record =>
+      case _: Clock      => ClockType()
+      case _: AsyncReset => scairrtl.dialects.AsyncResetType()
+      // `Bool` is both a `UInt` and a `Reset`, so integers are matched first.
+      case unsigned: UInt     => UIntType(width(unsigned))
+      case _: Reset           => scairrtl.dialects.ResetType()
+      case signed: SInt       => SIntType(width(signed))
+      case enumType: EnumType => UIntType(width(enumType))
+      case record: Record     =>
         if !allowAggregates && base == SpecifiedDirection.Unspecified then
           throw ImportError("aggregate values are not supported yet")
         bundleType(record, base, allowAggregates)
@@ -504,6 +591,9 @@ object ChiselImport:
 
   private def intValue(value: Value[FIRRTLBaseType]): Value[IntType] =
     castValue[IntType](value)
+
+  private def uintType(tpe: FIRRTLBaseType): UIntType =
+    castType[UIntType](tpe)
 
   private def uintValue(value: Value[FIRRTLBaseType]): Value[UIntType] =
     castValue[UIntType](value)

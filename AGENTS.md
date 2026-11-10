@@ -85,10 +85,13 @@ frontend/
     Circuit.scala        # package chisel3 access to the internal circuit
     Builder.scala        # firrtl builder API used by the walker
     ChiselImport.scala   # package chisel3 walker
+    Translate.scala      # package chisel3: toCircuitOp extension
+    EmitMLIR.scala       # circuit to MLIR assembly text and file
   test/
     src/
       Tiny.scala           # designs used by the importer tests
       ChiselImportTest.scala
+      EmitMLIRTest.scala
 tests/
   filecheck/
     lit.cfg              # scairrtl-opt substitution, SCAIRRTL_OPT override, MLIR features
@@ -112,17 +115,30 @@ invoking lit. Conversion passes get their own module when lowering work begins.
   and `opt` stay Chisel-free. `ChiselCircuit` lives in `package chisel3` because
   the internal circuit is package-private; code that names those internal types
   must live there too. `ChiselImport` walks `DefWire`, `DefReg`, `DefRegInit`,
-  `DefPrim` (`add`, `mux`, `bits`, comparisons), `Connect`, `DefMemory`,
+  `DefPrim` (`add`, `sub`, `mul`, `div`, `rem`, `and`/`or`/`xor`/`not`, the
+  reductions, `cat`, `dshl`/`dshr`, `pad`, `tail`, `bits`, `mux`, comparisons),
+  `Connect`, `ir.When`, and a `Placeholder`'s nested commands, plus `DefMemory`,
   `DefSeqMemory`, and `DefMemPort`; other commands are reported as errors.
-  Memories import as the CHIRRTL types and operations — `DefMemory` becomes
-  `chirrtl.combmem`, `DefSeqMemory` becomes `chirrtl.seqmem`, and each
-  `DefMemPort` becomes a `chirrtl.memoryport` with its
-  `chirrtl.memoryport.access`. Bundle and vector ports are preserved as
+  Chisel `Bool` is both a `UInt` and a `Reset`, so type conversion matches
+  integers before abstract resets. Enum-typed signals import as `UInt` of the
+  enum's width, and `Reset`/`AsyncReset` ports as `!firrtl.reset` /
+  `!firrtl.asyncreset`; `firrtl.regreset` accepts either reset type or a
+  one-bit unsigned value. Memories import as the CHIRRTL types and operations —
+  `DefMemory` becomes `chirrtl.combmem`, `DefSeqMemory` becomes
+  `chirrtl.seqmem`, and each `DefMemPort` becomes a `chirrtl.memoryport` with
+  its `chirrtl.memoryport.access`. Bundle and vector ports are preserved as
   `BundleType`/`VectorType`, with `subfield`/`subindex` projections for field
-  access. Aggregate wires/registers, dynamic vector indexing, `Conditional`
-  (`when`) regions, `DefInvalid`, and `FirrtlMemory` remain unsupported, which
-  also means `SyncReadMem.read` (wrapped in a `when`) and masked writes cannot
-  import yet. Port locations, annotations, and symbols are not encoded yet.
+  access. Aggregate wires/registers, dynamic vector indexing, `DefInstance`,
+  layer blocks (including printf and verification commands), `DefInvalid`, and
+  `FirrtlMemory` remain unsupported. Port locations, annotations, and symbols
+  are not encoded yet.
+  `EmitMLIR` prints the translated `CircuitOp` — mixing `firrtl.*` and
+  `chirrtl.*` — through ScaIR's `AssemblyPrinter` to a `String`, `Writer`, or
+  `.mlir` file, with `EmitOptions` choosing generic assembly and source
+  locations; `scairrtl-opt` parses and verifies that text again. The public
+  frontend entry points are the `toCircuitOp` extension and `EmitMLIR`, both
+  reporting failures as `Either[String, _]`; the `OK` results of `ChiselImport`
+  stay internal.
 - **scopt** — command-line argument parsing in `opt/`.
 - **mill-scalafix** — scalafix is wired into the `ScaIRRTLModule` trait and runs
   via `./mill format`.

@@ -11,24 +11,25 @@ and tests as appropriate.
 
 ## Width inference
 
-**Problem:** `InfersResultTypes` derives and checks result types for the one
-arithmetic operation that exists. The sibling primitives will each need their own
-rule: `mul` widens by summing the operand widths, `sub` and `add` share theirs,
-and comparisons produce a one-bit unsigned result.
+**Problem:** `InfersResultTypes` derives and checks a result width for each
+integer operation, but the signedness of `sub`, `mul`, `div`, `rem`, and the
+shifts is taken from the declared result rather than the operands. Chisel's
+internal IR can pair `UInt` operands with an `SInt` result, so a stricter rule
+would reject valid imports.
 
 **Known constraints:** ScaIR has no inference interface and `OpDefs` exposes no
 inference point, so `InfersResultTypes` is a dialect-local convention whose only
 consumer is its own verifier. Nothing outside the dialect can ask an operation
-for its result types. `unknownWidth` marks an uninferred width, and
-`AddOp.inferResultTypes` propagates it rather than guessing. See
+for its result types. `unknownWidth` marks an uninferred width, and every
+operation's rule propagates it rather than guessing. See
 [firrtl.scala](dialects/src/firrtl.scala).
 
 **Decisions needed:** Whether to upstream the inference hook so passes can use it,
 and how an uninferred width should resolve once a pass is responsible for it
 rather than the author.
 
-**Completion:** Add the width rule for each primitive as it lands, covered by a
-fixture for known and uninferred widths — `arithmetic.mlir` and
+**Completion:** Add the width rule for each new primitive as it lands, covered by
+a fixture for known and uninferred widths — `arithmetic.mlir` and
 `unsized_add.mlir` are the pattern.
 
 ## Module port wiring
@@ -63,7 +64,8 @@ Scala trait, and its abstract members are the interface methods. Implemented in
 [firrtl.scala](dialects/src/firrtl.scala): `SingleBlock`,
 `NoRegionArguments`, `HasParent`, `SameTypeOperands`, `SymbolName`,
 `SymbolVisibility`, `SymbolUserOpInterface`, `InfersResultTypes`,
-`SameOperandsIntTypeKind`, `OneBitOperands`, and `BitsSelectionRange`.
+`SameOperandsIntTypeKind`, `OneBitOperands`, `ResetOperands`, and
+`BitsSelectionRange`.
 
 Still absent, all CIRCT- or FIRRTL-specific: `ForceableOpInterface`, whose
 verifier is what gives `forceable` meaning; `FNamableOpInterface`;
@@ -91,8 +93,8 @@ them land, and remove each from the corresponding comment block.
 
 ## Remaining types
 
-**Problem:** Only `uint`, `sint`, `clock`, `bundle`, and `vector` exist, so
-several operations cannot be expressed.
+**Problem:** `uint`, `sint`, `clock`, `reset`, `asyncreset`, `bundle`, and
+`vector` exist, but `analog`, `enum`, and the reference type do not.
 
 **Known constraints:** CIRCT parameterizes `uint`, `sint`, and `analog` with a
 width sentinel of `-1` for an uninferred width, and gives `clock`, `reset`, and
@@ -100,9 +102,9 @@ width sentinel of `-1` for an uninferred width, and gives `clock`, `reset`, and
 parameter, spelled with a `const.` prefix. A forceable wire exposes a second
 `ref` result, which needs a reference type.
 
-**Decisions needed:** Choose the order to add `analog`, `reset`, `asyncreset`,
-the reference type, and `enum`, and whether the `isConst` parameter is carried
-on every type or modelled separately.
+**Decisions needed:** Choose the order to add `analog`, the reference type, and
+`enum`, and whether the `isConst` parameter is carried on every type or modelled
+separately.
 
 **Completion:** Add each type with the same print/parse pairing the current types
 use, plus fixtures that round-trip a sized and an unsized spelling. Aggregate
@@ -128,24 +130,25 @@ purpose, and whether a layer block needs its own parent set distinct from
 nesting, an undefined layer reference, and a layer whose specialization is
 disabled.
 
-## Sibling primitives
+## Unsupported commands and primitives
 
-**Problem:** `firrtl.add` is the only arithmetic operation, and there is no
-permissive `connect` for it to be distinguished from.
+**Problem:** The importer still rejects several Chisel commands and FIRRTL
+primitives that ordinary designs use.
 
-**Known constraints:** CIRCT's FIRRTL primitives share the same operand shape:
-`sub`, `mul`, `div`, and `rem` take two integer operands and produce an integer
-result, the bitwise operations take unsigned operands, and comparisons produce a
-one-bit unsigned result. `connect` differs from `matchingconnect` by permitting a
-wider destination but never a narrower one.
+**Known constraints:** Chisel lowers `printf`, assertions, and other verification
+statements into layer blocks, which the dialect cannot represent. Module
+instantiation (`DefInstance`) and its reset-valued connects need
+`firrtl.instance` and a permissive `firrtl.connect`; the dialect has neither.
+`DefInvalid`, named-port `FirrtlMemory`, aggregate wires/registers, and dynamic
+vector indexing also remain unimplemented. Among primitives, `shl`, `shr`,
+`head`, `asUInt`, `asSInt`, `asClock`, `asReset`, `asAsyncReset`, `neg`, and
+`cvt` are absent, so any design using them fails on import.
 
-**Decisions needed:** Choose the arithmetic subset to cover and whether to
-generalize the primitives behind a shared base rather than repeating the
-operand and result fields.
+**Decisions needed:** Choose whether to add layer blocks before printf and
+verification, and whether `connect` lands with instance support or on its own.
 
-**Completion:** Add the primitives with `SameOperandsIntTypeKind` and the
-commutative trait where they apply, add the permissive connect with its width
-rule, and cover each with IR fixtures.
+**Completion:** Implement each command or primitive with its verifier and IR
+fixture, then remove it from this list and from the per-operation TODO blocks.
 
 ## Lowering path
 
@@ -179,10 +182,10 @@ reference. `inner_sym` is a plain optional string where CIRCT carries
 `hw.inner_name`, and `prefix` is inert without an `FNamableOp`. `combmem` and
 `seqmem` record `init`, `prefix`, and (for `seqmem`) `ruw`, and `memoryport`
 records `MemDirEnum.Infer`, but no pass reads any of them.
-The importer maps `DefMemory`, `DefSeqMemory`, and `DefMemPort`, but `when`
-regions and `DefInvalid` are unsupported: `SyncReadMem.read` wraps its access in
-a `when` and `WireDefault(..., DontCare)` emits an invalidation, so sequential
-reads and masked writes still fail to import, as does `FirrtlMemory`.
+The importer maps `DefMemory`, `DefSeqMemory`, and `DefMemPort`, and `when`
+regions now import, but `DefInvalid` is unsupported, so
+`WireDefault(..., DontCare)` and masked writes still fail to import, as does
+`FirrtlMemory`.
 
 **Decisions needed:** Whether a forceable probe type earns its own Scala class
 and the layer parameter, whether `inner_sym` stays an untyped attribute, whether

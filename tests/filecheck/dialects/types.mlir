@@ -10,28 +10,34 @@ builtin.module {
       %b = "firrtl.wire"() <{sym_name = "unsized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint
       %c = "firrtl.wire"() <{sym_name = "signed", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.sint<16>
       %d = "firrtl.wire"() <{sym_name = "clk", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.clock
+      %e = "firrtl.wire"() <{sym_name = "rst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.reset
+      %f = "firrtl.wire"() <{sym_name = "arst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.asyncreset
     }) : () -> ()
   }) : () -> ()
 }
 
-// CHECK:       builtin.module {
-// CHECK-NEXT:    "firrtl.circuit"() <{sym_name = "Top", annotations = []}> ({
-// CHECK-NEXT:      "firrtl.module"() <{layers = [], port_locations = [], domain_info = [], port_types = [], sym_name = "Child", annotations = [], port_names = [], port_directions = [], port_annotations = [], convention = 0 : i32, port_symbols = []}> ({
-// CHECK-NEXT:        %0 = "firrtl.wire"() <{sym_name = "sized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint<8>
-// CHECK-NEXT:        %1 = "firrtl.wire"() <{sym_name = "unsized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint
-// CHECK-NEXT:        %2 = "firrtl.wire"() <{sym_name = "signed", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.sint<16>
-// CHECK-NEXT:        %3 = "firrtl.wire"() <{sym_name = "clk", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.clock
-// CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:    }) : () -> ()
-// CHECK-NEXT:  }
+// CHECK: builtin.module {
+// CHECK-NEXT:   "firrtl.circuit"() <{sym_name = "Top", annotations = []}> ({
+// CHECK-NEXT:     "firrtl.module"() <{layers = [], port_locations = [], domain_info = [], port_types = [], sym_name = "Child", annotations = [], port_names = [], port_directions = [], port_annotations = [], convention = 0 : i32, port_symbols = []}> ({
+// CHECK-NEXT:       %0 = "firrtl.wire"() <{sym_name = "sized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint<8>
+// CHECK-NEXT:       %1 = "firrtl.wire"() <{sym_name = "unsized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint
+// CHECK-NEXT:       %2 = "firrtl.wire"() <{sym_name = "signed", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.sint<16>
+// CHECK-NEXT:       %3 = "firrtl.wire"() <{sym_name = "clk", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.clock
+// CHECK-NEXT:       %4 = "firrtl.wire"() <{sym_name = "rst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.reset
+// CHECK-NEXT:       %5 = "firrtl.wire"() <{sym_name = "arst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.asyncreset
+// CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT: }
 
-// ROUNDTRIP:       builtin.module {
-// ROUNDTRIP-NEXT:    "firrtl.circuit"() <{sym_name = "Top", annotations = []}> ({
-// ROUNDTRIP-NEXT:      "firrtl.module"() <{layers = [], port_locations = [], domain_info = [], port_types = [], sym_name = "Child", annotations = [], port_names = [], port_directions = [], port_annotations = [], convention = 0 : i32, port_symbols = []}> ({
-// ROUNDTRIP-NEXT:        %0 = "firrtl.wire"() <{sym_name = "sized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint<8>
-// ROUNDTRIP-NEXT:        %1 = "firrtl.wire"() <{sym_name = "unsized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint
-// ROUNDTRIP-NEXT:        %2 = "firrtl.wire"() <{sym_name = "signed", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.sint<16>
-// ROUNDTRIP-NEXT:        %3 = "firrtl.wire"() <{sym_name = "clk", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.clock
-// ROUNDTRIP-NEXT:      }) : () -> ()
-// ROUNDTRIP-NEXT:    }) : () -> ()
-// ROUNDTRIP-NEXT:  }
+// ROUNDTRIP: builtin.module {
+// ROUNDTRIP-NEXT:   "firrtl.circuit"() <{sym_name = "Top", annotations = []}> ({
+// ROUNDTRIP-NEXT:     "firrtl.module"() <{layers = [], port_locations = [], domain_info = [], port_types = [], sym_name = "Child", annotations = [], port_names = [], port_directions = [], port_annotations = [], convention = 0 : i32, port_symbols = []}> ({
+// ROUNDTRIP-NEXT:       %0 = "firrtl.wire"() <{sym_name = "sized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint<8>
+// ROUNDTRIP-NEXT:       %1 = "firrtl.wire"() <{sym_name = "unsized", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.uint
+// ROUNDTRIP-NEXT:       %2 = "firrtl.wire"() <{sym_name = "signed", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.sint<16>
+// ROUNDTRIP-NEXT:       %3 = "firrtl.wire"() <{sym_name = "clk", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.clock
+// ROUNDTRIP-NEXT:       %4 = "firrtl.wire"() <{sym_name = "rst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.reset
+// ROUNDTRIP-NEXT:       %5 = "firrtl.wire"() <{sym_name = "arst", nameKind = 0 : i32, annotations = []}> : () -> !firrtl.asyncreset
+// ROUNDTRIP-NEXT:     }) : () -> ()
+// ROUNDTRIP-NEXT:   }) : () -> ()
+// ROUNDTRIP-NEXT: }

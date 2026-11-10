@@ -78,10 +78,73 @@ class ChiselImportTest extends AnyFunSuite:
     assert(text.contains("!chirrtl.cmemory<!firrtl.uint<8>, 16>"))
     assert(text.contains("\"chirrtl.memoryport.access\""))
 
-  test("rejects unsupported commands"):
+  test("imports a when as a firrtl.when"):
     val result = ChiselImport(ChiselStage.elaborate(new WhenTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(text.contains("\"firrtl.when\""))
+    assert(count(text, "\"firrtl.when\"") == 1)
+
+  test("nest otherwise and elsewhen regions"):
+    val result = ChiselImport(ChiselStage.elaborate(new ElseWhenTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(count(text, "\"firrtl.when\"") == 2)
+
+  test("imports bitwise and reduction primitives"):
+    val result = ChiselImport(ChiselStage.elaborate(new BitwiseTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    Seq(
+      "firrtl.and",
+      "firrtl.or",
+      "firrtl.xor",
+      "firrtl.not",
+      "firrtl.andr",
+      "firrtl.orr",
+      "firrtl.xorr",
+    ).foreach(name => assert(text.contains(s"\"$name\""), name))
+
+  test("imports arithmetic, concatenation, and shift primitives"):
+    val result = ChiselImport(ChiselStage.elaborate(new ArithTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    Seq(
+      "firrtl.sub",
+      "firrtl.mul",
+      "firrtl.div",
+      "firrtl.rem",
+      "firrtl.cat",
+      "firrtl.dshl",
+      "firrtl.pad",
+    ).foreach(name => assert(text.contains(s"\"$name\""), name))
+
+  test("maps enum ports and values to unsigned integers"):
+    val result = ChiselImport(ChiselStage.elaborate(new EnumTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(text.contains("!firrtl.uint<1>"))
+    assert(text.contains("\"firrtl.when\""))
+    assert(text.contains("\"firrtl.regreset\""))
+
+  test("maps reset and asyncreset ports to their dialect types"):
+    val result = ChiselImport(ChiselStage.elaborate(new ResetPortsTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(text.contains("!firrtl.reset"))
+    assert(text.contains("!firrtl.asyncreset"))
+
+  test("uses a reset-typed port as a register reset"):
+    val result = ChiselImport(ChiselStage.elaborate(new ResetRegTiny))
+    assert(result.isOK, result.fold(error => error.msg, _ => "ok"))
+    val text = render(result.get)
+    assert(text.contains("\"firrtl.regreset\""))
+    assert(text.contains("!firrtl.reset"))
+
+  test("rejects unsupported commands"):
+    val result = ChiselImport(ChiselStage.elaborate(new PrintfTiny))
     assert(result.isError)
     result.fold(
-      error => assert(error.msg.contains("When")),
+      error => assert(error.msg.contains("LayerBlock")),
       _ => fail("expected an unsupported-command error"),
     )
